@@ -278,7 +278,10 @@ dva-assistant/
 
 ## System Load Monitoring
 
-The UI sidebar displays a **System Load (%)** bar that auto-refreshes every 2 seconds with dynamic color coding:
+> **TODO:** Auto-refresh for System Load is currently disabled due to Streamlit limitations.
+> The `st_autorefresh` and `st.fragment` approaches cause app restarts. Future fix needed.
+
+The UI sidebar displays a **System Load (%)** bar with dynamic color coding:
 
 | Load Range | Color | Hex |
 |-------------|-------|-----|

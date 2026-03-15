@@ -2,6 +2,11 @@
 ui.py — Streamlit UI for DVA Assistant
 
 Enhanced with multi-model routing display and hardware info.
+
+TODO: Implement partial page refresh for System Load (st.fragment or st_autorefresh)
+- Current approaches cause Streamlit app to restart/crash
+- Need Streamlit 1.55+ fragment-based rerendering or alternative solution
+- See: https://discuss.streamlit.io/t/fragment-auto-refresh/
 """
 
 import os
@@ -181,7 +186,6 @@ def get_system_load() -> dict:
         cpu_util = psutil.cpu_percent(interval=0.3)
         mem_util = psutil.virtual_memory().percent
         
-        disk_io = psutil.disk_io_counters()
         disk_util = 0
         try:
             disk = psutil.disk_usage('/')
@@ -280,7 +284,8 @@ def get_system_load() -> dict:
             "load": 0, "gpu": 0, "vram": 0, "cpu": 0, 
             "memory": 0, "disk": 0, "network": 0,
             "gpu_temp": 0, "gpu_name": "CPU only",
-            "ollama_active": False, "warnings": [], "has_gpu": False
+            "ollama_active": False, "active_task": "none", "ramp_factor": 0,
+            "warnings": [], "has_gpu": False
         }
 
 
@@ -334,12 +339,7 @@ def render_sidebar():
         
         st.write("")
         
-        col1, col2 = st.columns([4, 1])
-        with col1:
-            st.subheader("📊 System Status")
-        with col2:
-            if st.button("🔄", key="refresh_sys"):
-                st.rerun()
+        st.subheader("📊 System Status")
         
         sys_load = get_system_load()
         load_val = sys_load.get("load", 0)
@@ -514,7 +514,36 @@ def process_question(prompt: str):
         })
     else:
         try:
+            # Show animated thinking indicator using HTML placeholder
+            thinking_html = """
+            <style>
+                @keyframes pulse-1 { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+                @keyframes pulse-2 { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+                @keyframes pulse-3 { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+                .thinking-container { display: flex; gap: 8px; align-items: center; padding: 10px 15px; background: linear-gradient(90deg, #1a1a2e 0%, #16213e 50%, #1a1a2e 100%); border-radius: 8px; margin: 10px 0; width: fit-content; }
+                .thinking-dot { width: 12px; height: 12px; border-radius: 50%; }
+                .dot-1 { background: linear-gradient(135deg, #22c55e, #16a34a); animation: pulse-1 1.2s ease-in-out infinite; }
+                .dot-2 { background: linear-gradient(135deg, #3b82f6, #2563eb); animation: pulse-2 1.2s ease-in-out infinite 0.2s; }
+                .dot-3 { background: linear-gradient(135deg, #eab308, #ca8a04); animation: pulse-3 1.2s ease-in-out infinite 0.4s; }
+                .thinking-text { color: #9ca3af; font-size: 14px; font-weight: 500; }
+                .thinking-icon { font-size: 20px; }
+            </style>
+            <div class="thinking-container">
+                <span class="thinking-icon">🎖️</span>
+                <div class="thinking-dot dot-1"></div>
+                <div class="thinking-dot dot-2"></div>
+                <div class="thinking-dot dot-3"></div>
+                <span class="thinking-text">Veteran Services at work...</span>
+            </div>
+            """
+            
+            thinking_placeholder = st.empty()
+            thinking_placeholder.markdown(thinking_html, unsafe_allow_html=True)
+            
             answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
+            
+            # Clear thinking indicator and show final answer
+            thinking_placeholder.empty()
             
             st.session_state.messages.append({
                 "role": "assistant",
