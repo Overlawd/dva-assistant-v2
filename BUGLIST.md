@@ -1,13 +1,7 @@
 # FIX the following errors in scraper.py
 
-* Import "bs4" could not be resolved Line 17 Col 6
-* Import "dotenv" could not be resolved Line 18 Col 6
-* Import "playwright.sync_api" could not be resolved Line 18 Col 6
-* Import "sqlalchemy" could not be resolved Line 20 Col 6
-* Import "langchain_ollama" could not be resolved Line 21 Col 6
 * Expression of type "None" cannot be assigned to parameter of type "str"
-  "None" is not assignable to "str"
-Line 179 Col 74
+  "None" is not assignable to "str" line 179 Col 74
 
 -------
 
