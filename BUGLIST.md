@@ -7,6 +7,11 @@ Does upgrading python to the latest version provide any meaningful beenfits to t
 
 -------
 
+## BACKUP
+
+Does the data management back up process actually back up everything except from github?  If not it needs to.  Also make the back up location path something user set.
+
+
 ## User Seed Submission via GUI
 
 User add seed to scraper via gui has gone missing.
