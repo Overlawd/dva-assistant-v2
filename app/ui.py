@@ -58,10 +58,12 @@ def render_sidebar():
         common_questions = main_module.get_common_questions()
         if common_questions:
             with st.expander("❓ Common Questions"):
-                for cat, questions in common_questions.items():
+                for cat_idx, (cat, questions) in enumerate(common_questions.items()):
                     st.markdown(f"**{cat}**")
-                    for q in questions[:3]:
-                        if st.button(q[:50] + "..." if len(q) > 50 else q, key=f"faq_{q[:20]}"):
+                    for q_idx, q in enumerate(questions[:3]):
+                        btn_key = f"faq_{cat_idx}_{q_idx}"
+                        display_text = q[:47] + "..." if len(q) > 47 else q
+                        if st.button(display_text, key=btn_key):
                             st.session_state.pending_question = q
                             st.rerun()
                     st.markdown("---")

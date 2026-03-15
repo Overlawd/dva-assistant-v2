@@ -121,439 +121,492 @@ function Restart-Application {
 }
 
 function Show-GPUMenu {
-    Write-Header "GPU Management"
+    $backToMain = $false
     
-    $composeFile = Join-Path $PROJECT_ROOT "docker-compose.yml"
-    $composeContent = Get-Content $composeFile -Raw
-    $gpuStatus = if ($composeContent -match "count: all") { "ENABLED" } else { "DISABLED" }
-    
-    Write-Host "GPU Mode: $gpuStatus" -ForegroundColor $(if ($gpuStatus -eq "ENABLED") { "Green" } else { "Red" })
-    Write-Host ""
-    Write-Host "[1] View GPU statistics (nvidia-smi)" -ForegroundColor Yellow
-    Write-Host "[2] Test GPU access in Docker" -ForegroundColor Yellow
-    Write-Host "[3] Check NVIDIA driver version" -ForegroundColor Yellow
-    Write-Host "[4] Toggle GPU Mode (Enable/Disable)" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    
-    switch ($choice) {
-        "1" {
-            Write-Host "GPU Statistics:" -ForegroundColor Cyan
-            nvidia-smi
-            Press-KeyToContinue
+    while (-not $backToMain) {
+        Write-Header "GPU Management"
+        
+        $composeFile = Join-Path $PROJECT_ROOT "docker-compose.yml"
+        $composeContent = Get-Content $composeFile -Raw
+        $gpuStatus = if ($composeContent -match "count: all") { "ENABLED" } else { "DISABLED" }
+        
+        Write-Host "GPU Mode: $gpuStatus" -ForegroundColor $(if ($gpuStatus -eq "ENABLED") { "Green" } else { "Red" })
+        Write-Host ""
+        Write-Host "[1] View GPU statistics (nvidia-smi)" -ForegroundColor Yellow
+        Write-Host "[2] Test GPU access in Docker" -ForegroundColor Yellow
+        Write-Host "[3] Check NVIDIA driver version" -ForegroundColor Yellow
+        Write-Host "[4] Toggle GPU Mode (Enable/Disable)" -ForegroundColor Yellow
+        Write-Host "[B] Back to main menu" -ForegroundColor Gray
+        Write-Host ""
+        
+        $choice = Read-Host "Select option"
+        
+        if ($choice -eq "B" -or $choice -eq "b") {
+            $backToMain = $true
+            continue
         }
-        "2" {
-            Write-Host "Testing GPU in Docker..." -ForegroundColor Yellow
-            docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi
-            Press-KeyToContinue
-        }
-        "3" {
-            Write-Host "NVIDIA Driver:" -ForegroundColor Cyan
-            nvidia-smi --query-gpu=driver_version --format=csv,noheader
-            Press-KeyToContinue
-        }
-        "4" {
-            $content = Get-Content $composeFile -Raw
-            if ($content -match "count: all") {
-                Write-Host "GPU mode is currently: ENABLED" -ForegroundColor Green
-                $confirm = Read-Host "Disable GPU mode? (y/n)"
-                if ($confirm -eq "y") {
-                    $content = $content -replace "count: all", "count: 0"
-                    Set-Content -Path $composeFile -Value $content
-                    Write-Host "GPU mode disabled. Restart required." -ForegroundColor Yellow
+        
+        switch ($choice) {
+            "1" {
+                Write-Host "GPU Statistics:" -ForegroundColor Cyan
+                nvidia-smi
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "2" {
+                Write-Host "Testing GPU in Docker..." -ForegroundColor Yellow
+                docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "3" {
+                Write-Host "NVIDIA Driver:" -ForegroundColor Cyan
+                nvidia-smi --query-gpu=driver_version --format=csv,noheader
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "4" {
+                $content = Get-Content $composeFile -Raw
+                if ($content -match "count: all") {
+                    Write-Host "GPU mode is currently: ENABLED" -ForegroundColor Green
+                    $confirm = Read-Host "Disable GPU mode? (y/n)"
+                    if ($confirm -eq "y") {
+                        $content = $content -replace "count: all", "count: 0"
+                        Set-Content -Path $composeFile -Value $content
+                        Write-Host "GPU mode disabled. Restart required." -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "GPU mode is currently: DISABLED" -ForegroundColor Red
+                    $confirm = Read-Host "Enable GPU mode? (y/n)"
+                    if ($confirm -eq "y") {
+                        $content = $content -replace "count: 0", "count: all"
+                        Set-Content -Path $composeFile -Value $content
+                        Write-Host "GPU mode enabled. Restart required." -ForegroundColor Green
+                    }
                 }
-            } else {
-                Write-Host "GPU mode is currently: DISABLED" -ForegroundColor Red
-                $confirm = Read-Host "Enable GPU mode? (y/n)"
-                if ($confirm -eq "y") {
-                    $content = $content -replace "count: 0", "count: all"
-                    Set-Content -Path $composeFile -Value $content
-                    Write-Host "GPU mode enabled. Restart required." -ForegroundColor Green
+                Press-KeyToContinue
+                Clear-Host
+            }
+            default {
+                if ($choice) {
+                    Write-Host "Invalid option." -ForegroundColor Yellow
+                    Start-Sleep 1
+                    Clear-Host
                 }
             }
         }
     }
     
-    if ($choice -ne "B") {
-        Start-Sleep 2
-        Clear-Host
-    }
+    Clear-Host
 }
 
 function Show-Diagnostic {
-    Write-Header "Diagnostic"
+    $backToMain = $false
     
-    $services = @("ollama", "db", "web", "scraper", "scheduler")
-    $allHealthy = $true
-    
-    Write-Host "Container Status:" -ForegroundColor Cyan
-    foreach ($svc in $services) {
-        $name = Get-ContainerName -Service $svc
-        $status = docker ps --filter "name=$name" --format "{{.Status}}"
-        if ($status) {
-            Write-Host "  $name : $status" -ForegroundColor Green
-        } else {
-            Write-Host "  $name : NOT RUNNING" -ForegroundColor Red
-            $allHealthy = $false
+    while (-not $backToMain) {
+        Write-Header "Diagnostic"
+        
+        $services = @("ollama", "db", "web", "scraper", "scheduler")
+        $allHealthy = $true
+        
+        Write-Host "Container Status:" -ForegroundColor Cyan
+        foreach ($svc in $services) {
+            $name = Get-ContainerName -Service $svc
+            $status = docker ps --filter "name=$name" --format "{{.Status}}"
+            if ($status) {
+                Write-Host "  $name : $status" -ForegroundColor Green
+            } else {
+                Write-Host "  $name : NOT RUNNING" -ForegroundColor Red
+                $allHealthy = $false
+            }
         }
-    }
-    
-    Write-Host ""
-    Write-Host "Ollama API Test:" -ForegroundColor Cyan
-    try {
-        $response = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5
-        $models = $response.models.name -join ", "
-        Write-Host "  Connected - Models: $models" -ForegroundColor Green
-    } catch {
-        Write-Host "  Failed to connect: $_" -ForegroundColor Red
-    }
-    
-    Write-Host ""
-    Write-Host "Database Test:" -ForegroundColor Cyan
-    $dbContainer = Get-ContainerName -Service "db"
-    $result = docker exec $dbContainer psql -U postgres -d dva_db -t -c "SELECT COUNT(*) FROM scraped_content" 2>$null
-    if ($result) {
-        Write-Host "  Connected - Content count: $($result.Trim())" -ForegroundColor Green
-    } else {
-        Write-Host "  Failed to connect" -ForegroundColor Red
-    }
-    
-    Write-Host ""
-    Write-Host "Disk Space:" -ForegroundColor Cyan
-    $drive = (Get-Location).Drive.Name
-    $disk = Get-PSDrive -Name $drive
-    $freeGB = [math]::Round($disk.Free / 1GB, 2)
-    Write-Host "  $drive`: free $freeGB GB"
-    
-    Write-Host ""
-    Write-Host "[V] View Logs" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $diagChoice = Read-Host "Select option"
-    
-    if ($diagChoice -eq "V" -or $diagChoice -eq "v") {
-        Write-Host "[1] Web container" -ForegroundColor Yellow
-        Write-Host "[2] Scraper container" -ForegroundColor Yellow
-        Write-Host "[3] Database" -ForegroundColor Yellow
-        Write-Host "[4] Ollama" -ForegroundColor Yellow
-        Write-Host "[B] Back" -ForegroundColor Gray
+        
+        Write-Host ""
+        Write-Host "Ollama API Test:" -ForegroundColor Cyan
+        try {
+            $response = Invoke-RestMethod -Uri "http://localhost:11434/api/tags" -TimeoutSec 5
+            $models = $response.models.name -join ", "
+            Write-Host "  Connected - Models: $models" -ForegroundColor Green
+        } catch {
+            Write-Host "  Failed to connect: $_" -ForegroundColor Red
+        }
+        
+        Write-Host ""
+        Write-Host "Database Test:" -ForegroundColor Cyan
+        $dbContainer = Get-ContainerName -Service "db"
+        $result = docker exec $dbContainer psql -U postgres -d dva_db -t -c "SELECT COUNT(*) FROM scraped_content" 2>$null
+        if ($result) {
+            Write-Host "  Connected - Content count: $($result.Trim())" -ForegroundColor Green
+        } else {
+            Write-Host "  Failed to connect" -ForegroundColor Red
+        }
+        
+        Write-Host ""
+        Write-Host "Disk Space:" -ForegroundColor Cyan
+        $drive = (Get-Location).Drive.Name
+        $disk = Get-PSDrive -Name $drive
+        $freeGB = [math]::Round($disk.Free / 1GB, 2)
+        Write-Host "  $drive`: free $freeGB GB"
+        
+        Write-Host ""
+        if ($allHealthy) {
+            Write-Host "All systems healthy!" -ForegroundColor Green
+        } else {
+            Write-Host "Some issues detected. Run option 1 to restart." -ForegroundColor Yellow
+        }
+        
+        Write-Host ""
+        Write-Host "[V] View Logs" -ForegroundColor Yellow
+        Write-Host "[B] Back to main menu" -ForegroundColor Gray
         Write-Host ""
         
-        $logChoice = Read-Host "Select option"
+        $diagChoice = Read-Host "Select option"
         
-        $container = switch ($logChoice) {
-            "1" { Get-ContainerName -Service "web" }
-            "2" { Get-ContainerName -Service "scraper" }
-            "3" { Get-ContainerName -Service "db" }
-            "4" { Get-ContainerName -Service "ollama" }
-            default { $null }
+        if ($diagChoice -eq "B" -or $diagChoice -eq "b") {
+            $backToMain = $true
+            Clear-Host
+            continue
         }
         
-        if ($container -and $logChoice -ne "B") {
-            Write-Host "Showing last 50 lines... (Ctrl+C to exit)" -ForegroundColor Cyan
-            docker logs --tail 50 -f $container
+        if ($diagChoice -eq "V" -or $diagChoice -eq "v") {
+            Write-Host "[1] Web container" -ForegroundColor Yellow
+            Write-Host "[2] Scraper container" -ForegroundColor Yellow
+            Write-Host "[3] Database" -ForegroundColor Yellow
+            Write-Host "[4] Ollama" -ForegroundColor Yellow
+            Write-Host "[B] Back" -ForegroundColor Gray
+            Write-Host ""
+            
+            $logChoice = Read-Host "Select option"
+            
+            if ($logChoice -eq "B" -or $logChoice -eq "b") {
+                Clear-Host
+                continue
+            }
+            
+            $container = switch ($logChoice) {
+                "1" { Get-ContainerName -Service "web" }
+                "2" { Get-ContainerName -Service "scraper" }
+                "3" { Get-ContainerName -Service "db" }
+                "4" { Get-ContainerName -Service "ollama" }
+                default { $null }
+            }
+            
+            if ($container) {
+                Write-Host "Showing last 50 lines... (Ctrl+C to exit)" -ForegroundColor Cyan
+                docker logs --tail 50 -f $container
+            }
+            Clear-Host
+        } elseif ($diagChoice) {
+            Write-Host "Invalid option." -ForegroundColor Yellow
+            Start-Sleep 1
+            Clear-Host
         }
     }
     
-    Write-Host ""
-    if ($allHealthy) {
-        Write-Host "All systems healthy!" -ForegroundColor Green
-    } else {
-        Write-Host "Some issues detected. Run option 1 to restart." -ForegroundColor Yellow
-    }
-    
-    Start-Sleep 2
     Clear-Host
 }
 
 function Show-DataMenu {
-    Write-Header "Data Management"
-    
-    Write-Host "[1] Create backup" -ForegroundColor Yellow
-    Write-Host "[2] List backups" -ForegroundColor Yellow
-    Write-Host "[3] Restore from backup" -ForegroundColor Yellow
-    Write-Host "[4] Delete old backups (>30 days)" -ForegroundColor Yellow
-    Write-Host "[5] Database Utilities" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
+    $backToMain = $false
     $scraper = Get-ContainerName -Service "scraper"
     $dbContainer = Get-ContainerName -Service "db"
     
-    switch ($choice) {
-        "1" {
-            $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-            $backupPath = Join-Path $BACKUP_DIR $timestamp
-            New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
-            
-            Write-Host "Backing up database..." -ForegroundColor Yellow
-            docker exec $dbContainer pg_dump -U postgres dva_db > (Join-Path $backupPath "db.sql")
-            
-            $manifest = @{
-                timestamp = $timestamp
-                type = "full"
-                created = Get-Date -Format "o"
-            } | ConvertTo-Json
-            Set-Content -Path (Join-Path $backupPath "manifest.json") -Value $manifest
-            
-            Write-Host "Backup created: $backupPath" -ForegroundColor Green
+    while (-not $backToMain) {
+        Write-Header "Data Management"
+        
+        Write-Host "[1] Create backup" -ForegroundColor Yellow
+        Write-Host "[2] List backups" -ForegroundColor Yellow
+        Write-Host "[3] Restore from backup" -ForegroundColor Yellow
+        Write-Host "[4] Delete old backups (>30 days)" -ForegroundColor Yellow
+        Write-Host "[5] Database Utilities" -ForegroundColor Yellow
+        Write-Host "[B] Back to main menu" -ForegroundColor Gray
+        Write-Host ""
+        
+        $choice = Read-Host "Select option"
+        
+        if ($choice -eq "B" -or $choice -eq "b") {
+            $backToMain = $true
+            continue
         }
-        "2" {
-            if (Test-Path $BACKUP_DIR) {
-                Get-ChildItem $BACKUP_DIR -Directory | ForEach-Object {
-                    $manifest = Join-Path $_.FullName "manifest.json"
-                    $date = if (Test-Path $manifest) { 
-                        (Get-Content $manifest | ConvertFrom-Json).created 
-                    } else { "Unknown" }
-                    Write-Host "  $($_.Name) - $date"
-                }
-            } else {
-                Write-Host "No backups found." -ForegroundColor Yellow
+        
+        switch ($choice) {
+            "1" {
+                $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+                $backupPath = Join-Path $BACKUP_DIR $timestamp
+                New-Item -ItemType Directory -Path $backupPath -Force | Out-Null
+                
+                Write-Host "Backing up database..." -ForegroundColor Yellow
+                docker exec $dbContainer pg_dump -U postgres dva_db > (Join-Path $backupPath "db.sql")
+                
+                $manifest = @{
+                    timestamp = $timestamp
+                    type = "full"
+                    created = Get-Date -Format "o"
+                } | ConvertTo-Json
+                Set-Content -Path (Join-Path $backupPath "manifest.json") -Value $manifest
+                
+                Write-Host "Backup created: $backupPath" -ForegroundColor Green
+                Press-KeyToContinue
+                Clear-Host
             }
-            Press-KeyToContinue
-        }
-        "3" {
-            Write-Host "Available backups:" -ForegroundColor Cyan
-            if (Test-Path $BACKUP_DIR) {
-                $backups = Get-ChildItem $BACKUP_DIR -Directory
-                $backups | ForEach-Object { Write-Host "  $($_.Name)" }
-                $name = Read-Host "Enter backup folder name to restore"
-                $backupPath = Join-Path $BACKUP_DIR $name
-                if (Test-Path $backupPath) {
-                    $sqlFile = Join-Path $backupPath "db.sql"
-                    if (Test-Path $sqlFile) {
-                        Write-Host "Restoring database..." -ForegroundColor Yellow
-                        Get-Content $sqlFile | docker exec -i $dbContainer psql -U postgres dva_db
-                        Write-Host "Restore complete!" -ForegroundColor Green
+            "2" {
+                if (Test-Path $BACKUP_DIR) {
+                    Get-ChildItem $BACKUP_DIR -Directory | ForEach-Object {
+                        $manifest = Join-Path $_.FullName "manifest.json"
+                        $date = if (Test-Path $manifest) { 
+                            (Get-Content $manifest | ConvertFrom-Json).created 
+                        } else { "Unknown" }
+                        Write-Host "  $($_.Name) - $date"
                     }
                 } else {
-                    Write-Host "Backup not found!" -ForegroundColor Red
+                    Write-Host "No backups found." -ForegroundColor Yellow
+                }
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "3" {
+                Write-Host "Available backups:" -ForegroundColor Cyan
+                if (Test-Path $BACKUP_DIR) {
+                    $backups = Get-ChildItem $BACKUP_DIR -Directory
+                    $backups | ForEach-Object { Write-Host "  $($_.Name)" }
+                    $name = Read-Host "Enter backup folder name to restore"
+                    $backupPath = Join-Path $BACKUP_DIR $name
+                    if (Test-Path $backupPath) {
+                        $sqlFile = Join-Path $backupPath "db.sql"
+                        if (Test-Path $sqlFile) {
+                            Write-Host "Restoring database..." -ForegroundColor Yellow
+                            Get-Content $sqlFile | docker exec -i $dbContainer psql -U postgres dva_db
+                            Write-Host "Restore complete!" -ForegroundColor Green
+                        }
+                    } else {
+                        Write-Host "Backup not found!" -ForegroundColor Red
+                    }
+                }
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "4" {
+                $cutoff = (Get-Date).AddDays(-30)
+                Get-ChildItem $BACKUP_DIR -Directory | Where-Object { $_.LastWriteTime -lt $cutoff } | ForEach-Object {
+                    Write-Host "Deleting old backup: $($_.Name)" -ForegroundColor Yellow
+                    Remove-Item $_.FullName -Recurse -Force
+                }
+                Write-Host "Cleanup complete!" -ForegroundColor Green
+                Press-KeyToContinue
+                Clear-Host
+            }
+            "5" {
+                $dbSubMenu = $true
+                while ($dbSubMenu) {
+                    Write-Header "Database Utilities"
+                    Write-Host "[1] Run test_database.py" -ForegroundColor Yellow
+                    Write-Host "[2] Run scraper (100 pages)" -ForegroundColor Yellow
+                    Write-Host "[3] Run scraper with --force" -ForegroundColor Yellow
+                    Write-Host "[4] Run reembed tool" -ForegroundColor Yellow
+                    Write-Host "[5] Check content stats" -ForegroundColor Yellow
+                    Write-Host "[B] Back" -ForegroundColor Gray
+                    Write-Host ""
+                    
+                    $dbChoice = Read-Host "Select option"
+                    
+                    if ($dbChoice -eq "B" -or $dbChoice -eq "b") {
+                        $dbSubMenu = $false
+                        Clear-Host
+                        continue
+                    }
+                    
+                    switch ($dbChoice) {
+                        "1" {
+                            docker exec $scraper python -c "import main; print('Import OK')" 2>$null
+                            if ($?) { Write-Host "Main module OK" -ForegroundColor Green }
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "2" {
+                            Write-Host "Running scraper..." -ForegroundColor Yellow
+                            docker exec $scraper python scraper.py 100
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "3" {
+                            Write-Host "Running scraper with --force..." -ForegroundColor Yellow
+                            docker exec $scraper python scraper.py 3000 --force
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "4" {
+                            Write-Host "Running reembed..." -ForegroundColor Yellow
+                            docker exec $scraper python reembed.py
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "5" {
+                            docker exec $dbContainer psql -U postgres -d dva_db -c "SELECT source_type, COUNT(*) FROM scraped_content GROUP BY source_type"
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        default {
+                            if ($dbChoice) {
+                                Write-Host "Invalid option." -ForegroundColor Yellow
+                                Start-Sleep 1
+                                Clear-Host
+                            }
+                        }
+                    }
                 }
             }
-        }
-        "4" {
-            $cutoff = (Get-Date).AddDays(-30)
-            Get-ChildItem $BACKUP_DIR -Directory | Where-Object { $_.LastWriteTime -lt $cutoff } | ForEach-Object {
-                Write-Host "Deleting old backup: $($_.Name)" -ForegroundColor Yellow
-                Remove-Item $_.FullName -Recurse -Force
-            }
-            Write-Host "Cleanup complete!" -ForegroundColor Green
-        }
-        "5" {
-            Write-Header "Database Utilities"
-            Write-Host "[1] Run test_database.py" -ForegroundColor Yellow
-            Write-Host "[2] Run scraper (100 pages)" -ForegroundColor Yellow
-            Write-Host "[3] Run scraper with --force" -ForegroundColor Yellow
-            Write-Host "[4] Run reembed tool" -ForegroundColor Yellow
-            Write-Host "[5] Check content stats" -ForegroundColor Yellow
-            Write-Host "[B] Back" -ForegroundColor Gray
-            Write-Host ""
-            
-            $dbChoice = Read-Host "Select option"
-            
-            switch ($dbChoice) {
-                "1" {
-                    docker exec $scraper python -c "import main; print('Import OK')" 2>$null
-                    if ($?) { Write-Host "Main module OK" -ForegroundColor Green }
-                    Press-KeyToContinue
-                }
-                "2" {
-                    Write-Host "Running scraper..." -ForegroundColor Yellow
-                    docker exec $scraper python scraper.py 100
-                }
-                "3" {
-                    Write-Host "Running scraper with --force..." -ForegroundColor Yellow
-                    docker exec $scraper python scraper.py 3000 --force
-                }
-                "4" {
-                    Write-Host "Running reembed..." -ForegroundColor Yellow
-                    docker exec $scraper python reembed.py
-                    Press-KeyToContinue
-                }
-                "5" {
-                    docker exec $dbContainer psql -U postgres -d dva_db -c "SELECT source_type, COUNT(*) FROM scraped_content GROUP BY source_type"
-                    Press-KeyToContinue
+            default {
+                if ($choice) {
+                    Write-Host "Invalid option." -ForegroundColor Yellow
+                    Start-Sleep 1
+                    Clear-Host
                 }
             }
         }
     }
     
-    Start-Sleep 2
     Clear-Host
 }
 
 function Show-ModelMenu {
-    Write-Header "Manage Models"
-    
+    $backToMain = $false
+    $ollama = Get-ContainerName -Service "ollama"
     $envFile = Join-Path $PROJECT_ROOT ".env"
     $envExists = Test-Path $envFile
     
-    Write-Host "[1] List installed models" -ForegroundColor Yellow
-    Write-Host "[2] Pull a new model" -ForegroundColor Yellow
-    Write-Host "[3] Delete a model" -ForegroundColor Yellow
-    Write-Host "[4] Switch Model (change active model)" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    $ollama = Get-ContainerName -Service "ollama"
-    
-    switch ($choice) {
-        "1" {
-            Write-Host "Installed models:" -ForegroundColor Cyan
-            docker exec $ollama ollama list
-            Press-KeyToContinue
+    while (-not $backToMain) {
+        Write-Header "Manage Models"
+        
+        Write-Host "[1] List installed models" -ForegroundColor Yellow
+        Write-Host "[2] Pull a new model" -ForegroundColor Yellow
+        Write-Host "[3] Delete a model" -ForegroundColor Yellow
+        Write-Host "[4] Switch Model (change active model)" -ForegroundColor Yellow
+        Write-Host "[B] Back to main menu" -ForegroundColor Gray
+        Write-Host ""
+        
+        $choice = Read-Host "Select option"
+        
+        if ($choice -eq "B" -or $choice -eq "b") {
+            $backToMain = $true
+            continue
         }
-        "2" {
-            $model = Read-Host "Enter model name (e.g., llama3.1:8b)"
-            if ($model) {
-                Write-Host "Pulling $model..." -ForegroundColor Yellow
-                docker exec $ollama ollama pull $model
-                Write-Host "Done!" -ForegroundColor Green
+        
+        switch ($choice) {
+            "1" {
+                Write-Host "Installed models:" -ForegroundColor Cyan
+                docker exec $ollama ollama list
+                Press-KeyToContinue
+                Clear-Host
             }
-        }
-        "3" {
-            $model = Read-Host "Enter model name to delete"
-            if ($model) {
-                docker exec $ollama ollama rm $model
-                Write-Host "Model deleted!" -ForegroundColor Green
+            "2" {
+                $model = Read-Host "Enter model name (e.g., llama3.1:8b)"
+                if ($model) {
+                    Write-Host "Pulling $model..." -ForegroundColor Yellow
+                    docker exec $ollama ollama pull $model
+                    Write-Host "Done!" -ForegroundColor Green
+                }
+                Press-KeyToContinue
+                Clear-Host
             }
-        }
-        "4" {
-            if (-not $envExists) {
-                Write-Host "Error: .env file not found at: $envFile" -ForegroundColor Red
-                Write-Host "PROJECT_ROOT detected as: $PROJECT_ROOT" -ForegroundColor Yellow
-                return
+            "3" {
+                $model = Read-Host "Enter model name to delete"
+                if ($model) {
+                    docker exec $ollama ollama rm $model
+                    Write-Host "Model deleted!" -ForegroundColor Green
+                }
+                Press-KeyToContinue
+                Clear-Host
             }
-            
-            Write-Host "[1] Change Chat Model (MODEL_NAME)" -ForegroundColor Yellow
-            Write-Host "[2] Change Reasoning Model (MODEL_COMPLEX)" -ForegroundColor Yellow
-            Write-Host "[3] Change SQL Model (SQL_MODEL)" -ForegroundColor Yellow
-            Write-Host "[4] Change Summarizer Model (SUMMARIZER_MODEL)" -ForegroundColor Yellow
-            Write-Host "[5] Change Embedding Model (EMBEDDING_MODEL)" -ForegroundColor Yellow
-            Write-Host "[6] Change Context Window (LLM_CTX)" -ForegroundColor Yellow
-            Write-Host "[B] Back" -ForegroundColor Gray
-            Write-Host ""
-            
-            $modelChoice = Read-Host "Select option"
-            
-            if ($modelChoice -eq "B") { return }
-            
-            $varName = switch ($modelChoice) {
-                "1" { "MODEL_NAME" }
-                "2" { "MODEL_COMPLEX" }
-                "3" { "SQL_MODEL" }
-                "4" { "SUMMARIZER_MODEL" }
-                "5" { "EMBEDDING_MODEL" }
-                "6" { "LLM_CTX" }
-                default { $null }
-            }
-            
-            if ($varName) {
-                if ($modelChoice -eq "6") {
-                    $newValue = Read-Host "Enter new $varName value (current: $((Get-Content $envFile | Select-String "^$varName=" -Raw) -replace '.*=', ''))"
-                } else {
-                    Write-Host "Common models:" -ForegroundColor Cyan
-                    if ($modelChoice -eq "1") { 
-                        Write-Host "  Chat: llama3.1:8b, llama3:8b, mistral:7b, phi3:3.8b-mini, qwen2.5:7b"
-                    } elseif ($modelChoice -eq "2") { 
-                        Write-Host "  Reasoning: qwen2.5:14b, deepseek-coder-v2:236b, mixtral:8x7b"
-                    } elseif ($modelChoice -eq "3") { 
-                        Write-Host "  SQL: codellama:7b, llama3.1:8b"
-                    } elseif ($modelChoice -eq "4") { 
-                        Write-Host "  Summarizer: qwen2.5:7b, llama3.1:8b"
-                    } elseif ($modelChoice -eq "5") { 
-                        Write-Host "  Embeddings: mxbai-embed-large, nomic-embed-text"
-                    }
-                    $newValue = Read-Host "Enter new $varName value"
+            "4" {
+                if (-not $envExists) {
+                    Write-Host "Error: .env file not found at: $envFile" -ForegroundColor Red
+                    Write-Host "PROJECT_ROOT detected as: $PROJECT_ROOT" -ForegroundColor Yellow
+                    Press-KeyToContinue
+                    Clear-Host
+                    continue
                 }
                 
-                if ($newValue) {
-                    $content = Get-Content $envFile -Raw
-                    if ($content -match "^$varName=") {
-                        $content = $content -replace "^$varName=.*", "$varName=$newValue"
-                    } else {
-                        $content += "`n$varName=$newValue"
+                $switchSubMenu = $true
+                while ($switchSubMenu) {
+                    Write-Header "Switch Model"
+                    Write-Host "[1] Change Chat Model (MODEL_NAME)" -ForegroundColor Yellow
+                    Write-Host "[2] Change Reasoning Model (MODEL_COMPLEX)" -ForegroundColor Yellow
+                    Write-Host "[3] Change SQL Model (SQL_MODEL)" -ForegroundColor Yellow
+                    Write-Host "[4] Change Summarizer Model (SUMMARIZER_MODEL)" -ForegroundColor Yellow
+                    Write-Host "[5] Change Embedding Model (EMBEDDING_MODEL)" -ForegroundColor Yellow
+                    Write-Host "[6] Change Context Window (LLM_CTX)" -ForegroundColor Yellow
+                    Write-Host "[B] Back" -ForegroundColor Gray
+                    Write-Host ""
+                    
+                    $modelChoice = Read-Host "Select option"
+                    
+                    if ($modelChoice -eq "B" -or $modelChoice -eq "b") {
+                        $switchSubMenu = $false
+                        Clear-Host
+                        continue
                     }
-                    Set-Content -Path $envFile -Value $content
-                    Write-Host "Updated $varName=$newValue" -ForegroundColor Green
-                    Write-Host "Restarting services..." -ForegroundColor Yellow
-                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart web scraper
+                    
+                    $varName = switch ($modelChoice) {
+                        "1" { "MODEL_NAME" }
+                        "2" { "MODEL_COMPLEX" }
+                        "3" { "SQL_MODEL" }
+                        "4" { "SUMMARIZER_MODEL" }
+                        "5" { "EMBEDDING_MODEL" }
+                        "6" { "LLM_CTX" }
+                        default { $null }
+                    }
+                    
+                    if ($varName) {
+                        if ($modelChoice -eq "6") {
+                            $newValue = Read-Host "Enter new $varName value (current: $((Get-Content $envFile | Select-String "^$varName=" -Raw) -replace '.*=', ''))"
+                        } else {
+                            Write-Host "Common models:" -ForegroundColor Cyan
+                            if ($modelChoice -eq "1") { 
+                                Write-Host "  Chat: llama3.1:8b, llama3:8b, mistral:7b, phi3:3.8b-mini, qwen2.5:7b"
+                            } elseif ($modelChoice -eq "2") { 
+                                Write-Host "  Reasoning: qwen2.5:14b, deepseek-coder-v2:236b, mixtral:8x7b"
+                            } elseif ($modelChoice -eq "3") { 
+                                Write-Host "  SQL: codellama:7b, llama3.1:8b"
+                            } elseif ($modelChoice -eq "4") { 
+                                Write-Host "  Summarizer: qwen2.5:7b, llama3.1:8b"
+                            } elseif ($modelChoice -eq "5") { 
+                                Write-Host "  Embeddings: mxbai-embed-large, nomic-embed-text"
+                            }
+                            $newValue = Read-Host "Enter new $varName value"
+                        }
+                        
+                        if ($newValue) {
+                            $content = Get-Content $envFile -Raw
+                            if ($content -match "^$varName=") {
+                                $content = $content -replace "^$varName=.*", "$varName=$newValue"
+                            } else {
+                                $content += "`n$varName=$newValue"
+                            }
+                            Set-Content -Path $envFile -Value $content
+                            Write-Host "Updated $varName=$newValue" -ForegroundColor Green
+                            Write-Host "Restarting services..." -ForegroundColor Yellow
+                            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart web scraper
+                        }
+                        Press-KeyToContinue
+                        Clear-Host
+                    } elseif ($modelChoice) {
+                        Write-Host "Invalid option." -ForegroundColor Yellow
+                        Start-Sleep 1
+                        Clear-Host
+                    }
+                }
+            }
+            default {
+                if ($choice) {
+                    Write-Host "Invalid option." -ForegroundColor Yellow
+                    Start-Sleep 1
+                    Clear-Host
                 }
             }
         }
     }
     
-    Start-Sleep 2
     Clear-Host
-}
-
-function Show-LogsMenu {
-    Write-Header "View Logs"
-    
-    Write-Host "[1] Web container" -ForegroundColor Yellow
-    Write-Host "[2] Scraper container" -ForegroundColor Yellow
-    Write-Host "[3] Database" -ForegroundColor Yellow
-    Write-Host "[4] Ollama" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    
-    $container = switch ($choice) {
-        "1" { Get-ContainerName -Service "web" }
-        "2" { Get-ContainerName -Service "scraper" }
-        "3" { Get-ContainerName -Service "db" }
-        "4" { Get-ContainerName -Service "ollama" }
-        default { $null }
-    }
-    
-    if ($container -and $choice -ne "B") {
-        Write-Host "Showing last 50 lines... (Ctrl+C to exit)" -ForegroundColor Cyan
-        docker logs --tail 50 -f $container
-    }
-}
-
-function Show-DatabaseMenu {
-    Write-Header "Database Utilities"
-    
-    Write-Host "[1] Run test_database.py" -ForegroundColor Yellow
-    Write-Host "[2] Run scraper (100 pages)" -ForegroundColor Yellow
-    Write-Host "[3] Run scraper with --force" -ForegroundColor Yellow
-    Write-Host "[4] Run reembed tool" -ForegroundColor Yellow
-    Write-Host "[5] Check content stats" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    $scraper = Get-ContainerName -Service "scraper"
-    
-    switch ($choice) {
-        "1" {
-            docker exec $scraper python -c "import main; print('Import OK')" 2>$null
-            if ($?) { Write-Host "Main module OK" -ForegroundColor Green }
-        }
-        "2" {
-            Write-Host "Running scraper..." -ForegroundColor Yellow
-            docker exec $scraper python scraper.py 100
-        }
-        "3" {
-            Write-Host "Running scraper with --force..." -ForegroundColor Yellow
-            docker exec $scraper python scraper.py 100 --force
-        }
-        "4" {
-            Write-Host "Running reembed..." -ForegroundColor Yellow
-            docker exec $scraper python reembed.py
-        }
-        "5" {
-            $db = Get-ContainerName -Service "db"
-            docker exec $db psql -U postgres -d dva_db -c "SELECT source_type, COUNT(*) FROM scraped_content GROUP BY source_type"
-        }
-    }
 }
 
 # Main loop
