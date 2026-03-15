@@ -1,6 +1,8 @@
 # hardware-aware routing of models
 
-33 seconds is quite slow. Let me check the hardware and identify the bottleneck:
+
+
+33 seconds for the response time was determined quite slow. Review the analsysis below where previous work was done to check the hardware and identify the bottleneck (there is no need to modify or run any code - just be aware of the history of troubleshooting):
 
 ```shell
 $ docker exec dva-db psql -U postgres -d dva_db -c "SELECT COUNT(*) FROM scraped_content;" 2>&1
@@ -64,8 +66,8 @@ Simple query → llama3.1:8b (~5-10s)
 Complex query → qwen2.5:14b if VRAM > 3GB free, else 8b
 This gives you:
 
-Fast responses for basic questions
-Capability for complex reasoning when hardware allows
-No crashes from OOM
+* Fast responses for basic questions
+* Capability for complex reasoning when hardware allows
+* No crashes from OOM
 
-Based on the validity of the above, implement Option B with hardware-aware model routing.
+Based on the validity of the above analysis, implement Option B with hardware-aware model routing.
