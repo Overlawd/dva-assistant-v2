@@ -3,13 +3,15 @@
 * Expression of type "None" cannot be assigned to parameter of type "str"
   "None" is not assignable to "str" line 179 Col 74
 
+Does upgrading python to the latest version provide any meaningful beenfits to this application?
+
 -------
 
 ## User Seed Submission via GUI
 
 User add seed to scraper via gui has gone missing.
 
-Add the following seeds iwth normal logic and ranking etc:
+Add the following seeds iwth normal duplication, trust and ranking logic etc:
 
 <https://soldieron.org.au/>
 <https://www.veteransemployment.gov.au/veterans-finding-job/your-job-search>
