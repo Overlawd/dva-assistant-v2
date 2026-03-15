@@ -29,8 +29,13 @@ EMBEDDING_DIM = int(os.getenv("EMBEDDING_DIM", "1024"))
 
 SEED_URLS = [
     {"url": "https://www.dva.gov.au/", "label": "DVA Home", "type": "DVA_GOV"},
+    {"url": "https://www.dva.gov.au/health-and-wellbeing", "label": "DVA Health", "type": "DVA_GOV"},
     {"url": "https://clik.dva.gov.au/", "label": "CLIK Home", "type": "CLIK"},
     {"url": "https://www.legislation.gov.au/Browse/ByTitle/Compensation/Veterans", "label": "Veterans Legislation", "type": "LEGISLATION"},
+    {"url": "https://www.rma.gov.au/", "label": "RMA Home", "type": "LEGISLATION"},
+    {"url": "https://www.reddit.com/r/DVAAustralia", "label": "Reddit Community", "type": "REDDIT"},
+    {"url": "https://www.openarms.gov.au/", "label": "Open Arms", "type": "SUPPORT"},
+    {"url": "https://www.veteransfirstconsulting.com/", "label": "Veterans First Consulting", "type": "SUPPORT"},
 ]
 
 CHUNK_SIZE = 2000

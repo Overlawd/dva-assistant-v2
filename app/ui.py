@@ -244,10 +244,17 @@ def get_system_load() -> dict:
             final_load = min(weighted_load, 100.0)
         
         warnings = []
+        current_time = time.time()
+        
         if hw.get("gpu_temp", 0) >= 80:
             warnings.append("GPU hot")
+        
         if vram_util >= 90:
-            warnings.append("VRAM critical")
+            last_vram_warning = st.session_state.get("last_vram_warning", 0)
+            if current_time - last_vram_warning >= 30:
+                warnings.append("VRAM critical")
+                st.session_state.last_vram_warning = current_time
+        
         if mem_util >= 90:
             warnings.append("Memory critical")
         if cpu_util >= 90:
@@ -317,19 +324,6 @@ def render_sidebar():
         st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
         
-        common_questions = main_module.get_common_questions()
-        if common_questions:
-            with st.expander("❓ Common Questions"):
-                for cat_idx, (cat, questions) in enumerate(common_questions.items()):
-                    st.markdown(f"**{cat}**")
-                    for q_idx, q in enumerate(questions[:3]):
-                        btn_key = f"faq_{cat_idx}_{q_idx}"
-                        display_text = q[:47] + "..." if len(q) > 47 else q
-                        if st.button(display_text, key=btn_key):
-                            st.session_state.pending_question = q
-                            st.rerun()
-                    st.markdown("---")
-        
         session_context = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
         if session_context:
             with st.expander(f"📝 Your Context ({len(session_context)} items)"):
@@ -375,8 +369,8 @@ def render_sidebar():
         if sys_load.get("ollama_active"):
             st.caption("🤖 Ollama: Processing request...")
         
-        active_task = sys_load.get("active_task", "none")
-        if active_task != "none":
+        active_task = sys_load.get("active_task")
+        if active_task and active_task not in ("none", "None", None, ""):
             task_labels = {
                 "gpu": "GPU-Bound (embedding/inference)",
                 "vram": "VRAM-Bound (memory pressure)",
@@ -406,6 +400,19 @@ def render_sidebar():
                 cols2[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
             else:
                 cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
+        
+        common_questions = main_module.get_common_questions()
+        if common_questions:
+            with st.expander("❓ Common Questions"):
+                for cat_idx, (cat, questions) in enumerate(common_questions.items()):
+                    st.markdown(f"**{cat}**")
+                    for q_idx, q in enumerate(questions[:3]):
+                        btn_key = f"faq_{cat_idx}_{q_idx}"
+                        display_text = q[:47] + "..." if len(q) > 47 else q
+                        if st.button(display_text, key=btn_key):
+                            st.session_state.pending_question = q
+                            st.rerun()
+                    st.markdown("---")
         
         hw_info = main_module.get_hardware_info()
         st.write(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
@@ -486,30 +493,31 @@ def process_question(prompt: str):
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    with st.chat_message("assistant", avatar="🎖️"):
-        with st.spinner("Thinking..."):
-            prepared = main_module.prepare_rag_context(
-                question=prompt,
-                session_history=st.session_state.session_history,
-            )
-            
-            if prepared.get("is_statement"):
-                response = prepared.get("acknowledgement", "")
-                st.markdown(response)
-                
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response,
-                    "timestamp": datetime.now(),
-                    "input_type": "statement",
-                })
-                
-                st.session_state.session_history.append({
-                    "role": "user",
-                    "content": prompt,
-                    "input_type": "statement",
-                })
-            else:
+    prepared = main_module.prepare_rag_context(
+        question=prompt,
+        session_history=st.session_state.session_history,
+    )
+    
+    if prepared.get("is_statement"):
+        response = prepared.get("acknowledgement", "")
+        
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "timestamp": datetime.now(),
+            "input_type": "statement",
+        })
+        
+        st.session_state.session_history.append({
+            "role": "user",
+            "content": prompt,
+            "input_type": "statement",
+        })
+        
+        st.rerun()
+    else:
+        with st.chat_message("assistant", avatar="🎖️"):
+            with st.spinner("Thinking..."):
                 answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
                 
                 st.markdown(answer)
@@ -533,6 +541,8 @@ def process_question(prompt: str):
                     {"role": "user", "content": prompt, "input_type": "question"},
                     {"role": "assistant", "content": answer, "input_type": "answer"},
                 ])
+        
+        st.rerun()
 
 
 def handle_input():
