@@ -187,28 +187,46 @@ function Show-GPUMenu {
                             
                             Write-Host "-----------------------------------------------------------" -ForegroundColor Gray
                             Write-Host "  GPU Processes:" -ForegroundColor Yellow
+                            
+                            $hasProcesses = $false
+                            
+                            # Query compute apps (CUDA processes)
                             $procMem = nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader 2>$null
                             if ($procMem -and $procMem.Trim()) {
                                 $procLines = $procMem -split "`n"
-                                $hasProcesses = $false
                                 foreach ($p in $procLines) {
-                                    if ($p.Trim() -and $p -notmatch "Insufficient Permissions" -and $p -notmatch "N/A") {
+                                    if ($p.Trim() -and $p -notmatch "Insufficient Permissions|N/A") {
                                         $pParts = $p -split ","
                                         if ($pParts.Count -ge 3) {
                                             $procName = $pParts[1].Trim()
-                                            $procMem = $pParts[2].Trim()
-                                            if ($procName -and $procMem -and $procName -ne "N/A") {
-                                                Write-Host "    $procName : $procMem" -ForegroundColor Cyan
+                                            $procMemVal = $pParts[2].Trim()
+                                            if ($procName -and $procMemVal -and $procName -ne "N/A") {
+                                                Write-Host "    $procName : $procMemVal" -ForegroundColor Cyan
                                                 $hasProcesses = $true
                                             }
                                         }
                                     }
                                 }
-                                if (-not $hasProcesses) {
-                                    Write-Host "    No GPU processes running" -ForegroundColor Gray
+                            }
+                            
+                            # Also check for Docker containers using GPU
+                            $dockerProcs = docker ps --format "{{.Names}}" 2>$null
+                            if ($dockerProcs) {
+                                $gpuContainers = @()
+                                foreach ($container in $dockerProcs -split "`n") {
+                                    if ($container.Trim()) {
+                                        $gpuTest = docker stats --no-stream --format "{{.Name}},{{.CPUPerc}},{{.MemPerc}}" $container 2>$null
+                                        if ($gpuTest -and $gpuTest -notmatch "N/A|0.00%|0.0%") {
+                                            $gpuContainers += $container
+                                            Write-Host "    [Docker] $container" -ForegroundColor Cyan
+                                            $hasProcesses = $true
+                                        }
+                                    }
                                 }
-                            } else {
-                                Write-Host "    No GPU processes running" -ForegroundColor Gray
+                            }
+                            
+                            if (-not $hasProcesses) {
+                                Write-Host "    No active GPU processes" -ForegroundColor Gray
                             }
                         } else {
                             Write-Host "  No GPU detected." -ForegroundColor Yellow
