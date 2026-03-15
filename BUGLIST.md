@@ -5,6 +5,10 @@
 
 Does upgrading python to the latest version provide any meaningful beenfits to this application?
 
+## UI
+
+padding in between Common Questions sectiosn e.g. Eligibility & Entitlements" is too large.
+
 ## Reapeat exact question wastes time and resource reinferring
 
 Dont re-infer the response if the question was exactly the same as before, instead respond "You just asked me that, if you would like to me to say again, just say yes, otherwise I'll await."  Then if yes, repeat the last response without reinferring, if no, just wait for next question / statement.
