@@ -148,20 +148,91 @@ function Show-GPUMenu {
         
         switch ($choice) {
             "1" {
-                Write-Host "GPU Statistics:" -ForegroundColor Cyan
-                nvidia-smi
+                Write-Host ""
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "                    GPU STATISTICS" -ForegroundColor Cyan
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host ""
+                
+                try {
+                    $gpuInfo = nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits
+                    if ($gpuInfo) {
+                        $gpuLines = $gpuInfo -split "`n"
+                        foreach ($line in $gpuLines) {
+                            $parts = $line -split ","
+                            if ($parts.Count -ge 7) {
+                                $idx = $parts[0].Trim()
+                                $name = $parts[1].Trim()
+                                $util = $parts[2].Trim()
+                                $memUsed = $parts[3].Trim()
+                                $memTotal = $parts[4].Trim()
+                                $temp = $parts[5].Trim()
+                                $power = $parts[6].Trim()
+                                
+                                Write-Host "  GPU $idx : $name" -ForegroundColor Yellow
+                                Write-Host "  ────────────────────────────────────────" -ForegroundColor Gray
+                                $utilColor = if ([int]$util -gt 80) { "Red" } elseif ([int]$util -gt 50) { "Yellow" } else { "Green" }
+                                Write-Host "    Utilization : $($util)%" -ForegroundColor $utilColor
+                                Write-Host "    Memory      : $($memUsed) MB / $($memTotal) MB" -ForegroundColor Cyan
+                                $tempColor = if ([int]$temp -gt 85) { "Red" } elseif ([int]$temp -gt 70) { "Yellow" } else { "Green" }
+                                Write-Host "    Temperature : $($temp) C" -ForegroundColor $tempColor
+                                Write-Host "    Power Draw  : $($power) W" -ForegroundColor Cyan
+                                Write-Host ""
+                            }
+                        }
+                    } else {
+                        Write-Host "  No GPU detected." -ForegroundColor Yellow
+                    }
+                } catch {
+                    Write-Host "  Error: NVIDIA GPU not accessible" -ForegroundColor Red
+                }
+                
+                Write-Host ""
                 Press-KeyToContinue
                 Clear-Host
             }
             "2" {
-                Write-Host "Testing GPU in Docker..." -ForegroundColor Yellow
-                docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi
+                Write-Host ""
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "                 TEST GPU IN DOCKER" -ForegroundColor Cyan
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host ""
+                Write-Host "Testing GPU access from within Docker container..." -ForegroundColor Yellow
+                Write-Host ""
+                
+                try {
+                    $dockerTest = docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi --query-gpu=name --format=csv,noheader 2>&1
+                    if ($LASTEXITCODE -eq 0 -and $dockerTest) {
+                        Write-Host "  [OK] GPU accessible in Docker!" -ForegroundColor Green
+                        Write-Host "  $dockerTest" -ForegroundColor Cyan
+                    } else {
+                        Write-Host "  [FAIL] GPU NOT accessible in Docker" -ForegroundColor Red
+                    }
+                } catch {
+                    Write-Host "  [FAIL] Docker GPU test failed" -ForegroundColor Red
+                }
+                
+                Write-Host ""
                 Press-KeyToContinue
                 Clear-Host
             }
             "3" {
-                Write-Host "NVIDIA Driver:" -ForegroundColor Cyan
-                nvidia-smi --query-gpu=driver_version --format=csv,noheader
+                Write-Host ""
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "                 NVIDIA DRIVER INFO" -ForegroundColor Cyan
+                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host ""
+                
+                try {
+                    $driver = nvidia-smi --query-gpu=driver_version --format=csv,noheader
+                    Write-Host "  Driver Version : $driver" -ForegroundColor Yellow
+                    $cuda = nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+                    Write-Host "  Compute Cap    : $cuda" -ForegroundColor Cyan
+                } catch {
+                    Write-Host "  Error: Could not retrieve driver info" -ForegroundColor Red
+                }
+                
+                Write-Host ""
                 Press-KeyToContinue
                 Clear-Host
             }
