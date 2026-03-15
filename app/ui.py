@@ -10,9 +10,67 @@ from datetime import datetime
 from typing import List, Optional
 
 import streamlit as st
+import psutil
+import requests
 from dotenv import load_dotenv
 
 import main as main_module
+
+
+def get_system_load() -> dict:
+    """Calculate weighted system load percentage."""
+    try:
+        gpu_util = 0
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=5
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                gpu_util = float(result.stdout.strip().split('\n')[0])
+        except Exception:
+            pass
+        
+        cpu_util = psutil.cpu_percent(interval=0.5)
+        mem_util = psutil.virtual_memory().percent
+        
+        net_sent = psutil.net_io_counters().bytes_sent
+        net_recv = psutil.net_io_counters().bytes_recv
+        time.sleep(0.5)
+        net_sent2 = psutil.net_io_counters().bytes_sent
+        net_recv2 = psutil.net_io_counters().bytes_recv
+        net_total = (net_sent2 - net_sent + net_recv2 - net_recv) / 1024 / 1024
+        network_util = min(net_total * 10, 100)
+        
+        weights = {
+            "gpu": 0.70,
+            "cpu": 0.20,
+            "network": 0.05,
+            "memory": 0.05
+        }
+        
+        weighted_load = (
+            gpu_util * weights["gpu"] +
+            cpu_util * weights["cpu"] +
+            network_util * weights["network"] +
+            mem_util * weights["memory"]
+        )
+        
+        if gpu_util >= 100 or cpu_util >= 100 or network_util >= 100 or mem_util >= 100:
+            final_load = 100.0
+        else:
+            final_load = min(weighted_load, 100.0)
+        
+        return {
+            "load": final_load,
+            "gpu": gpu_util,
+            "cpu": cpu_util,
+            "network": network_util,
+            "memory": mem_util
+        }
+    except Exception:
+        return {"load": 0, "gpu": 0, "cpu": 0, "network": 0, "memory": 0}
 
 load_dotenv()
 
@@ -80,6 +138,17 @@ def render_sidebar():
         st.divider()
         
         st.subheader("📊 System Status")
+        
+        sys_load = get_system_load()
+        load_val = sys_load.get("load", 0)
+        
+        load_color = "green" if load_val < 50 else "orange" if load_val < 80 else "red"
+        
+        st.write("**System Load (%)**")
+        
+        st.progress(load_val / 100)
+        
+        st.write("")
         
         hw_info = main_module.get_hardware_info()
         st.write(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
