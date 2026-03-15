@@ -5,12 +5,15 @@
 
 Does upgrading python to the latest version provide any meaningful beenfits to this application?
 
+## Reapeat exact question wastes time and resource reinferring
+
+Dont re-infer the response if the question was exactly the same as before, instead respond "You just asked me that, if you would like to me to say again, just say yes, otherwise I'll await."  Then if yes, repeat the last response without reinferring, if no, just wait for next question / statement.
+
 -------
 
 ## BACKUP
 
 Does the data management back up process actually back up everything except from github?  If not it needs to.  Also make the back up location path something user set.
-
 
 ## User Seed Submission via GUI
 

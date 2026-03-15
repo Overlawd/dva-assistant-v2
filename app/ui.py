@@ -533,7 +533,7 @@ def process_question(prompt: str):
                 <div class="thinking-dot dot-1"></div>
                 <div class="thinking-dot dot-2"></div>
                 <div class="thinking-dot dot-3"></div>
-                <span class="thinking-text">Veteran Services at work...</span>
+                <span class="thinking-text">Switching on, getting it done...</span>
             </div>
             """
             
@@ -578,7 +578,7 @@ def handle_input():
         st.rerun()
         return
     
-    if prompt := st.chat_input("Ask about DVA entitlements..."):
+    if prompt := st.chat_input("Ask anything about DVA, or tell me something I need to know to help you..."):
         process_question(prompt)
         st.rerun()
 
