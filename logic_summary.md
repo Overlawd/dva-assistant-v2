@@ -331,7 +331,7 @@ erDiagram
 ## Trust Level Hierarchy
 
 | Level | Source | Weight | Description |
-|-------|--------|--------|-------------|
+| ------- | -------- | -------- | ------------- |
 | L1 | Federal Legislation | 0.25 | legislation.gov.au, rma.gov.au |
 | L2 | CLIK Official | 0.30 | clik.dva.gov.au |
 | L3 | DVA.gov.au / Gov | 0.20 | dva.gov.au, other .gov.au |
@@ -357,7 +357,7 @@ LLM_CTX: 8192                   # Context window tokens
 ## File Purposes
 
 | File | Purpose |
-|------|---------|
+| ------ | --------- |
 | `main.py` | Core RAG pipeline, query processing, LLM invocation |
 | `ui.py` | Streamlit UI, user interaction handling |
 | `scraper.py` | Web crawling, content extraction, embedding generation |
