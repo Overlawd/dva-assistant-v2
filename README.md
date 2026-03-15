@@ -327,8 +327,10 @@ The admin console provides a menu-driven interface for managing the DVA Assistan
 | [1] Test Import | Verifies Python modules load correctly |
 | [2] Run Scraper | Scrapes 100 pages (respects 7-day freshness) |
 | [3] Force Scrape | Scrapes 3000 pages ignoring freshness |
-| [4] Reembed Tool | Migrates embeddings to new model (see below) |
+| [4] Run Reembed | Migrates embeddings with real-time progress |
 | [5] Content Stats | Shows scraped content by source type |
+| [6] Verify Reembed | Check migration status (rows embedded) |
+| [7] Create Index | Create HNSW index for faster vector search |
 
 #### Reembed Tool
 

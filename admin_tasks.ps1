@@ -543,8 +543,10 @@ function Show-DataMenu {
                     Write-Host "[1] Run test_database.py" -ForegroundColor Yellow
                     Write-Host "[2] Run scraper (100 pages)" -ForegroundColor Yellow
                     Write-Host "[3] Run scraper with --force" -ForegroundColor Yellow
-                    Write-Host "[4] Run reembed tool" -ForegroundColor Yellow
+                    Write-Host "[4] Run reembed tool (with progress)" -ForegroundColor Yellow
                     Write-Host "[5] Check content stats" -ForegroundColor Yellow
+                    Write-Host "[6] Verify reembed status" -ForegroundColor Yellow
+                    Write-Host "[7] Create reembed index" -ForegroundColor Yellow
                     Write-Host "[B] Back" -ForegroundColor Gray
                     Write-Host ""
                     
@@ -565,24 +567,55 @@ function Show-DataMenu {
                         }
                         "2" {
                             Write-Host "Running scraper..." -ForegroundColor Yellow
-                            docker exec $scraper python scraper.py 100
+                            docker exec -it $scraper python scraper.py 100
                             Press-KeyToContinue
                             Clear-Host
                         }
                         "3" {
                             Write-Host "Running scraper with --force..." -ForegroundColor Yellow
-                            docker exec $scraper python scraper.py 3000 --force
+                            docker exec -it $scraper python scraper.py 3000 --force
                             Press-KeyToContinue
                             Clear-Host
                         }
                         "4" {
-                            Write-Host "Running reembed..." -ForegroundColor Yellow
-                            docker exec $scraper python reembed.py
+                            Write-Host ""
+                            Write-Host "=============================================================" -ForegroundColor Cyan
+                            Write-Host "                 REEMBED TOOL" -ForegroundColor Cyan
+                            Write-Host "=============================================================" -ForegroundColor Cyan
+                            Write-Host ""
+                            Write-Host "This tool migrates embeddings to mxbai-embed-large." -ForegroundColor Yellow
+                            Write-Host "Press Ctrl+C to stop at any time."
+                            Write-Host ""
+                            Write-Host "Starting reembed process..." -ForegroundColor Yellow
+                            Write-Host ""
+                            
+                            docker exec -it $scraper python reembed.py
+                            
                             Press-KeyToContinue
                             Clear-Host
                         }
                         "5" {
                             docker exec $dbContainer psql -U postgres -d dva_db -c "SELECT source_type, COUNT(*) FROM scraped_content GROUP BY source_type"
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "6" {
+                            Write-Host ""
+                            Write-Host "=============================================================" -ForegroundColor Cyan
+                            Write-Host "              REEMBED VERIFICATION" -ForegroundColor Cyan
+                            Write-Host "=============================================================" -ForegroundColor Cyan
+                            Write-Host ""
+                            
+                            docker exec -it $scraper python reembed.py --verify
+                            
+                            Press-KeyToContinue
+                            Clear-Host
+                        }
+                        "7" {
+                            Write-Host ""
+                            Write-Host "Creating HNSW index for vector search..." -ForegroundColor Yellow
+                            docker exec -it $scraper python reembed.py --create-index
+                            
                             Press-KeyToContinue
                             Clear-Host
                         }
