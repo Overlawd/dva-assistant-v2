@@ -578,7 +578,7 @@ def handle_input():
         st.rerun()
         return
     
-    if prompt := st.chat_input("Ask anything about DVA, or tell me something I need to know to help you..."):
+    if prompt := st.chat_input("Ask anything about DVA, or tell me something I need to know to better help you..."):
         process_question(prompt)
         st.rerun()
 

@@ -7,6 +7,27 @@ Does upgrading python to the latest version provide any meaningful beenfits to t
 
 ## UI
 
+Provide better summaries of the references.  Some are simply one letter.  Needs to be a short sentence.
+
+For example - see the references are listed in long and short form.  do one only.
+
+```text
+[1] Defence Home Ownership Assistance Scheme (DHOAS) - https://www.dva.gov.au/providers/assistance-for-veterans/dhoas [2] DVA Rent Assistance - https://www.dva.gov.au/personal-claims/rent-assistance [3] Summary of Australian Veteran DVA Entitlements for Housing and Financial Support (source: context knowledge base) [4] DVA Financial Hardship Support (source: context knowledge base)
+
+[1] Loans and insurance
+
+[2] Defence Service Homes loans
+
+[3] Home Equity Access Scheme
+
+[4] Our Blog
+
+[5] Housing Entitlements for Veterans: Accessing Secure Homes and Accommodation
+
+[6] Confused: Is DVA Incapacity Payment the same as a Class A/B/C pension?
+
+```
+
 padding in between Common Questions sectiosn e.g. Eligibility & Entitlements" is too large.
 
 ## Reapeat exact question wastes time and resource reinferring
