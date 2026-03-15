@@ -33,6 +33,12 @@ function Write-Header {
     Write-Host ""
 }
 
+function Press-KeyToContinue {
+    Write-Host ""
+    Write-Host "Press any key to continue..." -ForegroundColor Gray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+}
+
 function Get-ContainerName {
     param([string]$Service)
     return "$CONTAINER_PREFIX$Service"
@@ -136,14 +142,17 @@ function Show-GPUMenu {
         "1" {
             Write-Host "GPU Statistics:" -ForegroundColor Cyan
             nvidia-smi
+            Press-KeyToContinue
         }
         "2" {
             Write-Host "Testing GPU in Docker..." -ForegroundColor Yellow
             docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi
+            Press-KeyToContinue
         }
         "3" {
             Write-Host "NVIDIA Driver:" -ForegroundColor Cyan
             nvidia-smi --query-gpu=driver_version --format=csv,noheader
+            Press-KeyToContinue
         }
         "4" {
             $content = Get-Content $composeFile -Raw
@@ -305,6 +314,7 @@ function Show-DataMenu {
             } else {
                 Write-Host "No backups found." -ForegroundColor Yellow
             }
+            Press-KeyToContinue
         }
         "3" {
             Write-Host "Available backups:" -ForegroundColor Cyan
@@ -349,6 +359,7 @@ function Show-DataMenu {
                 "1" {
                     docker exec $scraper python -c "import main; print('Import OK')" 2>$null
                     if ($?) { Write-Host "Main module OK" -ForegroundColor Green }
+                    Press-KeyToContinue
                 }
                 "2" {
                     Write-Host "Running scraper..." -ForegroundColor Yellow
@@ -361,9 +372,11 @@ function Show-DataMenu {
                 "4" {
                     Write-Host "Running reembed..." -ForegroundColor Yellow
                     docker exec $scraper python reembed.py
+                    Press-KeyToContinue
                 }
                 "5" {
                     docker exec $dbContainer psql -U postgres -d dva_db -c "SELECT source_type, COUNT(*) FROM scraped_content GROUP BY source_type"
+                    Press-KeyToContinue
                 }
             }
         }
@@ -393,6 +406,7 @@ function Show-ModelMenu {
         "1" {
             Write-Host "Installed models:" -ForegroundColor Cyan
             docker exec $ollama ollama list
+            Press-KeyToContinue
         }
         "2" {
             $model = Read-Host "Enter model name (e.g., llama3.1:8b)"

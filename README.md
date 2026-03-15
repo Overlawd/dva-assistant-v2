@@ -259,17 +259,20 @@ dva-assistant/
 .\admin_tasks.ps1
 ```
 
+The admin console provides a menu-driven interface for managing the DVA Assistant stack.
+
 | Option | Description |
 | --- | --- |
-| [1] Restart Application | Full/rolling/per-service restart |
-| [2] GPU Management | View stats, test GPU access |
-| [3] Switch Model | Change LLM or embeddings |
-| [4] Enable / Disable GPU | Toggle GPU in compose |
-| [5] Full Diagnostic | Health check all services |
-| [6] Data Management | Backup/restore |
-| [7] Pull Models | Manage Ollama models |
-| [8] View Logs | Tail container logs |
-| [9] Database Utilities | Run tests, scraper |
+| [1] Restart Application | Full/rolling/per-service restart, rebuild |
+| [2] GPU Management | View stats, test GPU, toggle GPU mode |
+| [3] Manage Models | List/pull/delete models, switch active model |
+| [4] Data Management | Backup/restore, database utilities |
+| [5] Diagnostic | Container status, API tests, view logs |
+
+### Features
+- Screen clears after actions complete (except errors)
+- "Press any key to continue" for output-heavy operations
+- Consolidated menu structure for easier navigation
 
 ---
 

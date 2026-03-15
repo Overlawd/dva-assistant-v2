@@ -131,7 +131,12 @@ On Windows, run the admin console:
 .\admin_tasks.ps1
 ```
 
-Manage models, backups, diagnostics, and more!
+The admin console provides menu-driven access to:
+- Restart Application
+- GPU Management (stats, tests, toggle)
+- Manage Models (list, pull, delete, switch)
+- Data Management (backup/restore, utilities)
+- Diagnostic (status, logs)
 
 ---
 
