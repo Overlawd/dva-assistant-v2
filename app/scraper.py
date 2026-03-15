@@ -249,20 +249,24 @@ def crawl_seeds(max_pages: int = 100, force: bool = False):
     visited: Set[str] = set()
     to_visit = [(s["url"], 0) for s in SEED_URLS]
     
-    count = 0
+    scraped = 0
+    skipped = 0
+    stored = 0
     
-    while to_visit and count < max_pages:
+    while to_visit and scraped < max_pages:
         url, depth = to_visit.pop(0)
         
         if url in visited:
             continue
         
+        visited.add(url)
+        
         if not force and not should_scrape(url):
-            print(f"Skipping (fresh): {url}")
+            skipped += 1
             continue
         
-        visited.add(url)
-        print(f"Scraping ({count+1}/{max_pages}): {url}")
+        scraped += 1
+        print(f"Scraping ({scraped}/{max_pages}): {url}")
         
         result = scrape_url(url)
         
@@ -277,17 +281,21 @@ def crawl_seeds(max_pages: int = 100, force: bool = False):
                     chunk_index=i,
                     chunk_total=len(chunks),
                 )
-            
-            count += 1
+                stored += 1
             
             if depth < 2:
                 for link in result.get("links", [])[:10]:
                     if link not in visited:
                         to_visit.append((link, depth + 1))
+        else:
+            print(f"  Warning: No content retrieved")
         
         time.sleep(1)
     
-    print(f"Crawl complete. Processed {count} pages.")
+    print(f"\nCrawl complete:")
+    print(f"  Scraped: {scraped} pages")
+    print(f"  Skipped (fresh): {skipped} pages")
+    print(f"  Stored: {stored} chunks")
 
 
 if __name__ == "__main__":
