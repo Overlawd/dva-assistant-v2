@@ -107,6 +107,8 @@ graph TD
 | Dynamic System Load | Real-time weighted metrics (GPU/CPU/VRAM/Mem/Disk/Net) with 2s auto-refresh |
 | System Load thresholds | Color-coded warnings: ≤50% green, 51-70% yellow, 71-90% orange, >90% red |
 | Hardware-adaptive weights | Dynamic weighting adjusts based on GPU availability and VRAM pressure |
+| Task-bound detection | Detects GPU/CPU/VRAM/Disk/Network-bound tasks and applies 95% weight to bottleneck |
+| Task-aware ramping | Weight emphasis ramps up over 2-3 refresh cycles for smooth transitions |
 | Ollama activity detection | Shows when Ollama is processing requests |
 | GPU temperature monitoring | Warning when GPU temp ≥80°C |
 | Common veteran questions | Top 50 FAQ for improved semantic search |
@@ -295,7 +297,19 @@ System load uses hardware-adaptive weights:
 | GPU available (high VRAM ≥85%) | 30% | 25% | 15% | 10% | 15% | 5% |
 | CPU only | 0% | 0% | 50% | 25% | 20% | 5% |
 
-When Ollama is actively processing a request, GPU weight is boosted by 20%.
+### Task-Bound Detection
+
+When a specific hardware resource becomes the bottleneck, the system detects it and applies 95% weight to that component:
+
+| Detected Task | Trigger Condition | UI Display |
+|---------------|------------------|------------|
+| GPU-Bound | Ollama active + GPU ≥70% | "GPU-Bound (embedding/inference)" |
+| VRAM-Bound | VRAM ≥90% | "VRAM-Bound (memory pressure)" |
+| CPU-Bound | CPU ≥85% + GPU <50% | "CPU-Bound (processing)" |
+| Disk I/O-Bound | Disk ≥80% + CPU <70% | "Disk I/O-Bound" |
+| Network-Bound | Network ≥70% + GPU/CPU <50% | "Network-Bound" |
+
+**Ramping:** Weight emphasis ramps from 0% to 95% over 3 refresh cycles (2-second intervals) for smooth transitions.
 
 ### Warnings
 

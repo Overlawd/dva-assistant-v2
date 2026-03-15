@@ -164,19 +164,33 @@ def get_system_load() -> dict:
             st.session_state.network_history.pop(0)
         network_util = sum(st.session_state.network_history) / len(st.session_state.network_history)
         
-        if hw["has_gpu"]:
-            if vram_util >= 85:
-                weights = {"gpu": 0.30, "vram": 0.25, "cpu": 0.15, "memory": 0.10, "disk": 0.15, "network": 0.05}
-            else:
-                weights = {"gpu": 0.40, "vram": 0.15, "cpu": 0.20, "memory": 0.10, "disk": 0.10, "network": 0.05}
-        else:
-            weights = {"gpu": 0.00, "vram": 0.00, "cpu": 0.50, "memory": 0.25, "disk": 0.20, "network": 0.05}
-        
         ollama_active = _get_ollama_active()
-        if ollama_active:
-            weights["gpu"] = min(weights["gpu"] * 1.2, 0.50)
-            total_w = sum(weights.values())
-            weights = {k: v/total_w for k, v in weights.items()}
+        
+        active_task = _detect_active_task(ollama_active, gpu_util, vram_util, cpu_util, disk_util, network_util)
+        
+        if 'task_history' not in st.session_state:
+            st.session_state.task_history = []
+        
+        if active_task != "none":
+            st.session_state.task_history.append(active_task)
+            if len(st.session_state.task_history) > 3:
+                st.session_state.task_history.pop(0)
+        else:
+            if len(st.session_state.task_history) > 0:
+                st.session_state.task_history.pop(0) if len(st.session_state.task_history) == 1 else None
+        
+        ramp_factor = min(len(st.session_state.task_history) / 3.0, 1.0) if st.session_state.task_history else 0.0
+        
+        if active_task != "none" and ramp_factor > 0:
+            weights = _get_task_weights(active_task, ramp_factor)
+        else:
+            if hw["has_gpu"]:
+                if vram_util >= 85:
+                    weights = {"gpu": 0.30, "vram": 0.25, "cpu": 0.15, "memory": 0.10, "disk": 0.15, "network": 0.05}
+                else:
+                    weights = {"gpu": 0.40, "vram": 0.15, "cpu": 0.20, "memory": 0.10, "disk": 0.10, "network": 0.05}
+            else:
+                weights = {"gpu": 0.00, "vram": 0.00, "cpu": 0.50, "memory": 0.25, "disk": 0.20, "network": 0.05}
         
         weighted_load = (
             gpu_util * weights.get("gpu", 0) +
@@ -222,6 +236,8 @@ def get_system_load() -> dict:
             "gpu_temp": hw.get("gpu_temp", 0),
             "gpu_name": hw.get("gpu_name", "CPU only"),
             "ollama_active": ollama_active,
+            "active_task": active_task,
+            "ramp_factor": ramp_factor,
             "warnings": warnings,
             "has_gpu": hw["has_gpu"],
         }
@@ -332,6 +348,19 @@ def render_sidebar():
         
         if sys_load.get("ollama_active"):
             st.caption("🤖 Ollama: Processing request...")
+        
+        active_task = sys_load.get("active_task", "none")
+        if active_task != "none":
+            task_labels = {
+                "gpu": "GPU-Bound (embedding/inference)",
+                "vram": "VRAM-Bound (memory pressure)",
+                "cpu": "CPU-Bound (processing)",
+                "disk": "Disk I/O-Bound",
+                "network": "Network-Bound"
+            }
+            task_label = task_labels.get(active_task, active_task)
+            ramp = sys_load.get("ramp_factor", 0) * 100
+            st.caption(f"⚡ Task: {task_label} ({ramp:.0f}% emphasis)")
         
         with st.expander("📊 Component Details"):
             st.markdown("""
