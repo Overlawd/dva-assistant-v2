@@ -136,6 +136,7 @@ function Show-GPUMenu {
         Write-Host "[2] Test GPU access in Docker" -ForegroundColor Yellow
         Write-Host "[3] Check NVIDIA driver version" -ForegroundColor Yellow
         Write-Host "[4] Toggle GPU Mode (Enable/Disable)" -ForegroundColor Yellow
+        Write-Host "[5] Monitor GPU (continuous)" -ForegroundColor Yellow
         Write-Host "[B] Back to main menu" -ForegroundColor Gray
         Write-Host ""
         
@@ -149,9 +150,9 @@ function Show-GPUMenu {
         switch ($choice) {
             "1" {
                 Write-Host ""
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host "                    GPU STATISTICS" -ForegroundColor Cyan
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host ""
                 
                 try {
@@ -170,7 +171,7 @@ function Show-GPUMenu {
                                 $power = $parts[6].Trim()
                                 
                                 Write-Host "  GPU $idx : $name" -ForegroundColor Yellow
-                                Write-Host "  ────────────────────────────────────────" -ForegroundColor Gray
+                                Write-Host "  ----------------------------------------" -ForegroundColor Gray
                                 $utilColor = if ([int]$util -gt 80) { "Red" } elseif ([int]$util -gt 50) { "Yellow" } else { "Green" }
                                 Write-Host "    Utilization : $($util)%" -ForegroundColor $utilColor
                                 Write-Host "    Memory      : $($memUsed) MB / $($memTotal) MB" -ForegroundColor Cyan
@@ -193,9 +194,9 @@ function Show-GPUMenu {
             }
             "2" {
                 Write-Host ""
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host "                 TEST GPU IN DOCKER" -ForegroundColor Cyan
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host ""
                 Write-Host "Testing GPU access from within Docker container..." -ForegroundColor Yellow
                 Write-Host ""
@@ -218,9 +219,9 @@ function Show-GPUMenu {
             }
             "3" {
                 Write-Host ""
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host "                 NVIDIA DRIVER INFO" -ForegroundColor Cyan
-                Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host ""
                 
                 try {
@@ -256,6 +257,88 @@ function Show-GPUMenu {
                     }
                 }
                 Press-KeyToContinue
+                Clear-Host
+            }
+            "5" {
+                Write-Host ""
+                Write-Host "=============================================================" -ForegroundColor Cyan
+                Write-Host "                 GPU MONITOR (Press ESC to exit)" -ForegroundColor Cyan
+                Write-Host "=============================================================" -ForegroundColor Cyan
+                Write-Host ""
+                Write-Host "Refreshing every 2 seconds. Press ESC to return to menu..." -ForegroundColor Yellow
+                Write-Host ""
+                
+                $monitoring = $true
+                while ($monitoring) {
+                    if ($Host.UI.RawUI.KeyAvailable) {
+                        $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+                        if ($key.VirtualKeyCode -eq 27) {
+                            $monitoring = $false
+                            break
+                        }
+                    }
+                    
+                    Clear-Host
+                    Write-Host "=============================================================" -ForegroundColor Cyan
+                    Write-Host "                 GPU MONITOR (Press ESC to exit)" -ForegroundColor Cyan
+                    Write-Host "=============================================================" -ForegroundColor Cyan
+                    Write-Host ""
+                    
+                    try {
+                        $gpuInfo = nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw --format=csv,noheader,nounits
+                        if ($gpuInfo) {
+                            $gpuLines = $gpuInfo -split "`n"
+                            foreach ($line in $gpuLines) {
+                                $parts = $line -split ","
+                                if ($parts.Count -ge 7) {
+                                    $idx = $parts[0].Trim()
+                                    $name = $parts[1].Trim()
+                                    $util = $parts[2].Trim()
+                                    $memUsed = $parts[3].Trim()
+                                    $memTotal = $parts[4].Trim()
+                                    $temp = $parts[5].Trim()
+                                    $power = $parts[6].Trim()
+                                    
+                                    $utilColor = if ([int]$util -gt 80) { "Red" } elseif ([int]$util -gt 50) { "Yellow" } else { "Green" }
+                                    $tempColor = if ([int]$temp -gt 85) { "Red" } elseif ([int]$temp -gt 70) { "Yellow" } else { "Green" }
+                                    
+                                    Write-Host "  GPU $idx : $name" -ForegroundColor Yellow
+                                    Write-Host "  ----------------------------------------" -ForegroundColor Gray
+                                    Write-Host "    Utilization : $($util)%" -ForegroundColor $utilColor
+                                    Write-Host "    Memory      : $($memUsed) MB / $($memTotal) MB" -ForegroundColor Cyan
+                                    Write-Host "    Temperature : $($temp) C" -ForegroundColor $tempColor
+                                    Write-Host "    Power Draw  : $($power) W" -ForegroundColor Cyan
+                                    Write-Host ""
+                                }
+                            }
+                        }
+                        
+                        Write-Host "-----------------------------------------------------------" -ForegroundColor Gray
+                        Write-Host "  Process GPU Memory:" -ForegroundColor Yellow
+                        $procMem = nvidia-smi --query-compute-apps=pid,process_name,used_memory --format=csv,noheader
+                        if ($procMem) {
+                            $procLines = $procMem -split "`n"
+                            foreach ($p in $procLines) {
+                                if ($p.Trim()) {
+                                    $pParts = $p -split ","
+                                    if ($pParts.Count -ge 3) {
+                                        Write-Host "    $($pParts[1].Trim()): $($pParts[2].Trim())" -ForegroundColor Cyan
+                                    }
+                                }
+                            }
+                        } else {
+                            Write-Host "    No processes using GPU" -ForegroundColor Gray
+                        }
+                        
+                    } catch {
+                        Write-Host "  Error: Could not read GPU info" -ForegroundColor Red
+                    }
+                    
+                    Write-Host ""
+                    Write-Host "Press ESC to exit monitoring..." -ForegroundColor Gray
+                    Start-Sleep -Seconds 2
+                }
+                
                 Clear-Host
             }
             default {
