@@ -11,7 +11,6 @@ from datetime import datetime
 from typing import List, Optional
 
 import streamlit as st
-from streamlit_autorefresh import st_autorefresh
 import psutil
 import requests
 from dotenv import load_dotenv
@@ -335,7 +334,12 @@ def render_sidebar():
         
         st.write("")
         
-        st.subheader("📊 System Status")
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.subheader("📊 System Status")
+        with col2:
+            if st.button("🔄", key="refresh_sys"):
+                st.rerun()
         
         sys_load = get_system_load()
         load_val = sys_load.get("load", 0)
@@ -553,9 +557,6 @@ def handle_input():
 def main():
     try:
         init_session_state()
-        
-        # Auto-refresh system stats every 2 seconds
-        st_autorefresh(interval=2000, key="system_load_refresh")
         
         render_sidebar()
         
