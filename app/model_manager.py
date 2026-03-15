@@ -1,5 +1,5 @@
 """
-model_manager.py — Hardware-adaptive model selection for DVA Assistant v2
+model_manager.py — Hardware-adaptive model selection for DVA Assistant
 
 Automatically detects GPU capabilities and recommends optimal models.
 """

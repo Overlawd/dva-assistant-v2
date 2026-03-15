@@ -1,5 +1,5 @@
 """
-scraper.py — Web scraper for DVA Assistant v2
+scraper.py — Web scraper for DVA Assistant
 
 Enhanced with support for new embedding models.
 """
@@ -90,21 +90,32 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVE
     return chunks
 
 
-def determine_trust_level(url: str, source_type: str) -> int:
+def determine_source_type(url: str) -> str:
+    """Determine source type from URL."""
     url_lower = url.lower()
-    
     if "legislation.gov.au" in url_lower or "rma.gov.au" in url_lower:
-        return 1
+        return "LEGISLATION"
     elif "clik.dva.gov.au" in url_lower:
-        return 2
+        return "CLIK"
     elif "dva.gov.au" in url_lower:
-        return 3
-    elif source_type == "SUPPORT":
-        return 4
-    elif source_type == "REDDIT":
-        return 5
-    
-    return 3
+        return "DVA_GOV"
+    elif "reddit.com" in url_lower:
+        return "REDDIT"
+    else:
+        return "SUPPORT"
+
+
+def determine_trust_level(url: str) -> int:
+    """Determine trust level from URL."""
+    source_type = determine_source_type(url)
+    trust_map = {
+        "LEGISLATION": 1,
+        "CLIK": 2,
+        "DVA_GOV": 3,
+        "SUPPORT": 4,
+        "REDDIT": 5,
+    }
+    return trust_map.get(source_type, 3)
 
 
 def embed_text(text: str) -> Optional[List[float]]:
@@ -160,9 +171,10 @@ def scrape_url(url: str, max_depth: int = 2) -> Dict:
     return result
 
 
-def store_content(url: str, title: str, content: str, source_type: str, chunk_index: int = 0, chunk_total: int = 1):
+def store_content(url: str, title: str, content: str, source_type: str = None, chunk_index: int = 0, chunk_total: int = 1):
     content_hash = compute_hash(content)
-    trust_level = determine_trust_level(url, source_type)
+    source_type = source_type or determine_source_type(url)
+    trust_level = determine_trust_level(url)
     
     embedding = embed_text(content)
     
@@ -262,7 +274,6 @@ def crawl_seeds(max_pages: int = 100, force: bool = False):
                     url=url,
                     title=result.get("title", url),
                     content=chunk,
-                    source_type="DVA_GOV",
                     chunk_index=i,
                     chunk_total=len(chunks),
                 )

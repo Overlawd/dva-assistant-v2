@@ -1,5 +1,5 @@
 """
-ui.py — Streamlit UI for DVA Assistant v2
+ui.py — Streamlit UI for DVA Assistant
 
 Enhanced with multi-model routing display and hardware info.
 """
@@ -17,7 +17,7 @@ import main as main_module
 load_dotenv()
 
 st.set_page_config(
-    page_title="DVA Assistant v2",
+    page_title="DVA Assistant",
     page_icon="🎖️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -49,7 +49,7 @@ def init_session_state():
 def render_sidebar():
     """Render the sidebar with controls and info."""
     with st.sidebar:
-        st.title("🎖️ DVA Assistant v2")
+        st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
         
         st.divider()
@@ -190,7 +190,7 @@ def main():
     
     render_sidebar()
     
-    st.title("DVA Assistant v2")
+    st.title("DVA Assistant")
     st.caption("Ask questions about Australian veteran entitlements, compensation, and DVA services")
 
     for msg in st.session_state.messages:

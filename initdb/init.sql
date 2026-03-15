@@ -1,5 +1,5 @@
--- init.sql - Database schema for DVA Assistant v2
--- Includes new embedding column for mxbai-embed-large
+-- init.sql - Database schema for DVA Assistant
+-- Includes embedding column for mxbai-embed-large
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS scraped_content (
     title TEXT,
     source_type VARCHAR(50),
     source_library VARCHAR(100),
-    source_url TEXT UNIQUE,
+    source_url TEXT,
     page_text TEXT,
     chunk_index INTEGER DEFAULT 0,
     chunk_total INTEGER DEFAULT 1,
@@ -34,7 +34,8 @@ CREATE TABLE IF NOT EXISTS scraped_content (
     trust_level SMALLINT DEFAULT 3,
     content_hash CHAR(64),
     last_scraped TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(source_url, chunk_index)
 );
 
 CREATE INDEX IF NOT EXISTS idx_scraped_content_trust ON scraped_content(trust_level);

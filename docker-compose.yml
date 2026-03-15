@@ -3,7 +3,7 @@ version: "3.8"
 services:
   ollama:
     image: ollama/ollama:0.6.1
-    container_name: dva-ollama-v2
+    container_name: dva-ollama
     ports:
       - "11434:11434"
     volumes:
@@ -16,13 +16,13 @@ services:
               count: all
               capabilities: [gpu]
     networks:
-      - dva_network_v2
+      - dva_network
 
   db:
     image: pgvector/pgvector:pg15
-    container_name: dva-db-v2
+    container_name: dva-db
     ports:
-      - "5433:5432"
+      - "5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: vets_secure_pw
@@ -31,7 +31,7 @@ services:
       - db_data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d
     networks:
-      - dva_network_v2
+      - dva_network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -42,9 +42,9 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: dva-web-v2
+    container_name: dva-web
     ports:
-      - "8502:8501"
+      - "8501:8501"
     environment:
       DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
       OLLAMA_BASE_URL: http://ollama:11434
@@ -60,7 +60,7 @@ services:
       ollama:
         condition: service_started
     networks:
-      - dva_network_v2
+      - dva_network
     volumes:
       - ./app:/app
     command: streamlit run ui.py --server.port=8501 --server.address=0.0.0.0
@@ -69,7 +69,7 @@ services:
     build:
       context: ./app
       dockerfile: Dockerfile
-    container_name: dva-scraper-v2
+    container_name: dva-scraper
     environment:
       DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
       OLLAMA_BASE_URL: http://ollama:11434
@@ -81,7 +81,7 @@ services:
       ollama:
         condition: service_started
     networks:
-      - dva_network_v2
+      - dva_network
     volumes:
       - ./app:/app
     command: tail -f /dev/null
@@ -94,7 +94,7 @@ services:
 
   scheduler:
     image: mcuadros/ofelia:0.3.10
-    container_name: dva-scheduler-v2
+    container_name: dva-scheduler
     depends_on:
       - scraper
     command: daemon --docker
@@ -103,14 +103,14 @@ services:
     environment:
       OFELIA_INTERVAL: 0 0 2 1 * *  # Monthly at 2 AM
     networks:
-      - dva_network_v2
+      - dva_network
     labels:
       ofelia.job-run: scraper-schedule
       ofelia.job-run.command: "python scraper.py 200 --force"
       ofelia.job-run.schedule: "0 2 1 * *"
 
 networks:
-  dva_network_v2:
+  dva_network:
     driver: bridge
 
 volumes:

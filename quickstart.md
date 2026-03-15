@@ -1,4 +1,4 @@
-# DVA Assistant v2 - Quick Start Guide
+# DVA Assistant - Quick Start Guide
 
 Get up and running in under 10 minutes!
 
@@ -13,8 +13,8 @@ Get up and running in under 10 minutes!
 ## Step 1: Get the Code
 
 ```powershell
-git clone <repo-url> C:\projects\dva-assistant-v2
-cd C:\projects\dva-assistant-v2
+git clone <repo-url> C:\projects\dva-assistant
+cd C:\projects\dva-assistant
 ```
 
 ---
@@ -22,8 +22,7 @@ cd C:\projects\dva-assistant-v2
 ## Step 2: Configure
 
 ```powershell
-# Rename the environment template
-Rename-Item "_env" ".env"
+Rename-Item "_env" ".env
 ```
 
 That's it! The default settings work for most setups.
@@ -53,11 +52,11 @@ docker ps
 ```
 
 You should see 5 containers running:
-- dva-ollama-v2
-- dva-db-v2  
-- dva-web-v2
-- dva-scraper-v2
-- dva-scheduler-v2
+- dva-ollama
+- dva-db  
+- dva-web
+- dva-scraper
+- dva-scheduler
 
 ---
 
@@ -66,18 +65,18 @@ You should see 5 containers running:
 This takes 5-15 minutes depending on your internet:
 
 ```powershell
-docker exec dva-ollama-v2 ollama pull llama3.1:8b
-docker exec dva-ollama-v2 ollama pull qwen2.5:14b
-docker exec dva-ollama-v2 ollama pull codellama:7b
-docker exec dva-ollama-v2 ollama pull qwen2.5:7b
-docker exec dva-ollama-v2 ollama pull mxbai-embed-large
+docker exec dva-ollama ollama pull llama3.1:8b
+docker exec dva-ollama ollama pull qwen2.5:14b
+docker exec dva-ollama ollama pull codellama:7b
+docker exec dva-ollama ollama pull qwen2.5:7b
+docker exec dva-ollama ollama pull mxbai-embed-large
 ```
 
 ---
 
 ## Step 6: Test It!
 
-Open your browser to: **http://localhost:8502**
+Open your browser to: **http://localhost:8501**
 
 Try asking:
 > "What is MRCA?"
@@ -88,10 +87,10 @@ Try asking:
 
 ```powershell
 # Quick test (50 pages)
-docker exec dva-scraper-v2 python scraper.py 50
+docker exec dva-scraper python scraper.py 50
 
 # Full crawl (takes hours)
-docker exec dva-scraper-v2 python scraper.py 300 --force
+docker exec dva-scraper python scraper.py 300 --force
 ```
 
 ---
@@ -142,4 +141,4 @@ docker compose up -d
 
 - Check README.md for full documentation
 - Use Admin Console [5] for diagnostics
-- Check container logs: `docker logs dva-web-v2`
+- Check container logs: `docker logs dva-web`

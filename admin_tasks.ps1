@@ -1,5 +1,5 @@
-# admin_tasks.ps1 - DVA Assistant v2 Admin Console
-# Windows PowerShell script for managing the v2 stack
+# admin_tasks.ps1 - DVA Assistant Admin Console
+# Windows PowerShell script for managing the stack
 
 param(
     [switch]$NoMenu
@@ -11,7 +11,6 @@ if (-not $PROJECT_ROOT) {
 }
 
 $CONTAINER_PREFIX = "dva-"
-$V2_SUFFIX = "-v2"
 $BACKUP_DIR = Join-Path $PROJECT_ROOT "backups"
 
 function Write-Header {
@@ -25,7 +24,7 @@ function Write-Header {
 
 function Get-ContainerName {
     param([string]$Service)
-    return "$CONTAINER_PREFIX$Service$V2_SUFFIX"
+    return "$CONTAINER_PREFIX$Service"
 }
 
 function Test-ContainersRunning {
@@ -42,7 +41,7 @@ function Test-ContainersRunning {
 }
 
 function Show-MainMenu {
-    Write-Header "DVA Assistant v2 - Admin Console"
+    Write-Header "DVA Assistant - Admin Console"
     
     $running = Test-ContainersRunning
     Write-Host "Running services: $($running -join ', ')" -ForegroundColor $(if ($running.Count -eq 5) { "Green" } else { "Yellow" })
@@ -131,7 +130,7 @@ function Restart-Application {
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
             Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
             Start-Sleep 10
-            docker ps --filter "name=dva-.*-v2" --format "table {{.Names}}\t{{.Status}}"
+            docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
         }
         "2" {
             Write-Host "Performing rolling restart..." -ForegroundColor Yellow

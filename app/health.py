@@ -1,5 +1,5 @@
 """
-health.py — Health check utilities for DVA Assistant v2
+health.py — Health check utilities for DVA Assistant
 """
 
 import os

@@ -1,5 +1,5 @@
 """
-main.py — RAG pipeline for DVA Assistant v2
+main.py — RAG pipeline for DVA Assistant
 Enhanced with multi-model routing, improved embeddings, and summarization
 """
 
