@@ -134,7 +134,7 @@ function Show-GPUMenu {
         Write-Host ""
         Write-Host "[1] View GPU statistics (nvidia-smi)" -ForegroundColor Yellow
         Write-Host "[2] Test GPU access in Docker" -ForegroundColor Yellow
-        Write-Host "[3] Check NVIDIA driver version" -ForegroundColor Yellow
+        Write-Host "[3] View NVIDIA driver version" -ForegroundColor Yellow
         Write-Host "[4] Toggle GPU Mode (Enable/Disable)" -ForegroundColor Yellow
         Write-Host "[B] Back to main menu" -ForegroundColor Gray
         Write-Host ""
@@ -237,15 +237,19 @@ function Show-GPUMenu {
                 Write-Host ""
                 
                 try {
-                    $dockerTest = docker run --rm --gpus all nvidia/cuda:12.0-base-ubuntu20.04 nvidia-smi --query-gpu=name --format=csv,noheader 2>&1
-                    if ($LASTEXITCODE -eq 0 -and $dockerTest) {
+                    $dockerTest = docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>&1
+                    if ($LASTEXITCODE -eq 0 -and $dockerTest -and $dockerTest -notmatch "error|failed|Error") {
                         Write-Host "  [OK] GPU accessible in Docker!" -ForegroundColor Green
                         Write-Host "  $dockerTest" -ForegroundColor Cyan
                     } else {
                         Write-Host "  [FAIL] GPU NOT accessible in Docker" -ForegroundColor Red
+                        if ($dockerTest -match "error|failed") {
+                            Write-Host "  $dockerTest" -ForegroundColor Yellow
+                        }
                     }
                 } catch {
                     Write-Host "  [FAIL] Docker GPU test failed" -ForegroundColor Red
+                    Write-Host "  $_" -ForegroundColor Yellow
                 }
                 
                 Write-Host ""
@@ -736,6 +740,8 @@ if (-not $NoMenu) {
             "^[Qq]$" { 
                 Clear-Host
                 Write-Host "Goodbye!" -ForegroundColor Green
+                Start-Sleep 2
+                Clear-Host
                 $running = $false
             }
             "" {
