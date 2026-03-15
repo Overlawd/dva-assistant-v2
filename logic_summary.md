@@ -410,6 +410,61 @@ flowchart TD
 | Warning | 71-90% | Orange (#f97316) | None |
 | Critical | >90% | Red (#ef4444) | GPU hot, VRAM/Mem/CPU critical |
 
+### Task-Bound Detection
+
+When a specific hardware resource becomes the bottleneck, the system detects it and applies 95% weight to that component via ramping:
+
+```mermaid
+flowchart TD
+    START([Metrics]) --> CHECK_OLLAMA{Ollama<br/>Active?}
+    
+    CHECK_OLLAMA -->|Yes| CHECK_GPU70{GPU ≥70%?}
+    CHECK_OLLAMA -->|No| CHECK_VRAM90
+    
+    CHECK_GPU70 -->|Yes| TASK_GPU[Task: GPU-Bound]
+    CHECK_GPU70 -->|No| CHECK_VRAM90
+    
+    CHECK_VRAM90{VRAM ≥90%} -->|Yes| TASK_VRAM[Task: VRAM-Bound]
+    CHECK_VRAM90 -->|No| CHECK_CPU85
+    
+    CHECK_CPU85{CPU ≥85%<br/>GPU <50%} -->|Yes| TASK_CPU[Task: CPU-Bound]
+    CHECK_CPU85 -->|No| CHECK_DISK80
+    
+    CHECK_DISK80{Disk ≥80%<br/>CPU <70%} -->|Yes| TASK_DISK[Task: Disk-Bound]
+    CHECK_DISK80 -->|No| CHECK_NET70
+    
+    CHECK_NET70{Net ≥70%<br/>GPU/CPU <50%} -->|Yes| TASK_NET[Task: Network-Bound]
+    CHECK_NET70 -->|No| TASK_NONE[Task: None]
+    
+    TASK_GPU --> RAMP[Add to<br/>task_history]
+    TASK_VRAM --> RAMP
+    TASK_CPU --> RAMP
+    TASK_DISK --> RAMP
+    TASK_NET --> RAMP
+    TASK_NONE --> RAMP
+    
+    RAMP --> RAMP_CALC{Count ≥3?<br/>3 refreshes}
+    RAMP_CALC -->|Yes| FACTOR_95[95% emphasis]
+    RAMP_CALC -->|No| FACTOR_RAMP[Proportional<br/>ramping]
+    
+    FACTOR_95 --> BLEND[Blend weights<br/>base → task]
+    FACTOR_RAMP --> BLEND
+    
+    BLEND --> APPLY[Apply to<br/>System Load]
+```
+
+### Task Detection Triggers
+
+| Detected Task | Trigger Condition |
+|---------------|------------------|
+| GPU-Bound | Ollama active + GPU ≥70% |
+| VRAM-Bound | VRAM ≥90% |
+| CPU-Bound | CPU ≥85% + GPU <50% |
+| Disk I/O-Bound | Disk ≥80% + CPU <70% |
+| Network-Bound | Network ≥70% + GPU/CPU <50% |
+
+**Ramping:** Weight emphasis ramps from 0% → 95% over 3 refresh cycles (6 seconds).
+
 ---
 
 ## File Purposes

@@ -70,6 +70,45 @@ def _get_ollama_active() -> bool:
         return False
 
 
+def _get_container_network() -> float:
+    """Get network I/O for the dva-web container only."""
+    try:
+        result = subprocess.run(
+            ["docker", "stats", "--no-stream", "--format", "{{.NetIO}}", "dva-web"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            parts = result.stdout.strip().split("/")
+            if len(parts) >= 2:
+                recv = parts[0].strip()
+                sent = parts[1].strip()
+                
+                def parse_size(s: str) -> float:
+                    s = s.upper()
+                    mult = 1
+                    if "GB" in s:
+                        mult = 1024
+                        s = s.replace("GB", "")
+                    elif "MB" in s:
+                        s = s.replace("MB", "")
+                    elif "KB" in s:
+                        mult = 1/1024
+                        s = s.replace("KB", "")
+                    elif "B" in s:
+                        mult = 1/1024/1024
+                        s = s.replace("B", "")
+                    try:
+                        return float(s.strip()) * mult
+                    except:
+                        return 0.0
+                
+                total_mb = parse_size(recv) + parse_size(sent)
+                return min(total_mb * 10, 100)
+    except Exception:
+        pass
+    return 0.0
+
+
 def _detect_active_task(ollama_active: bool, gpu_util: float, vram_util: float, 
                         cpu_util: float, disk_util: float, network_util: float) -> str:
     """Detect which hardware is currently bottlenecking based on Ollama API + thresholds."""
@@ -151,18 +190,7 @@ def get_system_load() -> dict:
         except Exception:
             pass
         
-        net_sent = psutil.net_io_counters().bytes_sent
-        net_recv = psutil.net_io_counters().bytes_recv
-        time.sleep(0.3)
-        net_sent2 = psutil.net_io_counters().bytes_sent
-        net_recv2 = psutil.net_io_counters().bytes_recv
-        net_mb = (net_sent2 - net_sent + net_recv2 - net_recv) / 1024 / 1024
-        network_util = min(net_mb * 10, 100)
-        
-        st.session_state.network_history.append(network_util)
-        if len(st.session_state.network_history) > 5:
-            st.session_state.network_history.pop(0)
-        network_util = sum(st.session_state.network_history) / len(st.session_state.network_history)
+        network_util = _get_container_network()
         
         ollama_active = _get_ollama_active()
         
@@ -289,8 +317,6 @@ def render_sidebar():
         st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
         
-        st.divider()
-        
         common_questions = main_module.get_common_questions()
         if common_questions:
             with st.expander("❓ Common Questions"):
@@ -313,7 +339,7 @@ def render_sidebar():
                     st.session_state.session_history = []
                     st.rerun()
         
-        st.divider()
+        st.write("")
         
         st_autorefresh(interval=2000, key="system_load_refresh")
         
@@ -363,26 +389,23 @@ def render_sidebar():
             st.caption(f"⚡ Task: {task_label} ({ramp:.0f}% emphasis)")
         
         with st.expander("📊 Component Details"):
-            st.markdown("""
-                <style>
-                    .metric-small .stMetric { font-size: 0.7rem; }
-                    .metric-small label { font-size: 0.65rem; }
-                </style>
-            """, unsafe_allow_html=True)
-            
-            cols = st.columns(3)
             if sys_load.get("has_gpu"):
-                cols[0].metric("GPU", f"{sys_load.get('gpu', 0):.0f}%")
-                cols[1].metric("VRAM", f"{sys_load.get('vram', 0):.0f}%")
-                cols[2].metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
+                cols = st.columns(3)
+                cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>GPU<br/><b>{sys_load.get('gpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
+                cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>VRAM<br/><b>{sys_load.get('vram', 0):.0f}%</b></div>", unsafe_allow_html=True)
+                cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Temp<br/><b>{sys_load.get('gpu_temp', 0)}°C</b></div>", unsafe_allow_html=True)
             else:
-                cols[0].metric("CPU", f"{sys_load.get('cpu', 0):.0f}%")
-                cols[1].metric("Memory", f"{sys_load.get('memory', 0):.0f}%")
-                cols[2].metric("Disk", f"{sys_load.get('disk', 0):.0f}%")
+                cols = st.columns(3)
+                cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>CPU<br/><b>{sys_load.get('cpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
+                cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
+                cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Disk<br/><b>{sys_load.get('disk', 0):.0f}%</b></div>", unsafe_allow_html=True)
             
             cols2 = st.columns(2)
-            cols2[0].metric("Network", f"{sys_load.get('network', 0):.1f}%")
-            cols2[1].metric("Memory", f"{sys_load.get('memory', 0):.0f}%")
+            if sys_load.get("has_gpu"):
+                cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
+                cols2[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
+            else:
+                cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
         
         hw_info = main_module.get_hardware_info()
         st.write(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
@@ -392,7 +415,7 @@ def render_sidebar():
         if models_info.get("status") == "connected":
             st.write(f"**Models Installed:** {len(models_info.get('installed', []))}")
         
-        st.divider()
+        st.write("")
         
         st.subheader("🔧 Model Routing")
         st.caption("Questions are automatically routed to optimal models")
@@ -404,7 +427,7 @@ def render_sidebar():
             st.write(f"**SQL:** {rec.get('sql', 'N/A')}")
             st.write(f"**Embeddings:** {rec.get('embeddings', 'N/A')}")
         
-        st.divider()
+        st.write("")
         
         st.subheader("📚 Knowledge Base")
         stats = main_module.get_page_stats()
@@ -416,7 +439,7 @@ def render_sidebar():
                 unsafe_allow_html=True,
             )
         
-        st.divider()
+        st.write("")
         
         st.caption(f"Last updated: {main_module.get_last_updated()}")
 
