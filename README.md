@@ -20,6 +20,7 @@ The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) sy
 
 - **Multi-model routing** - Automatically selects optimal model based on query complexity
 - **Hardware detection** - Auto-detects GPU and recommends optimal models
+- **Dynamic System Load** - Real-time weighted load calculation with auto-refresh
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
 - **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
 - **SQL specialist** - codellama:7b generates more accurate database queries
@@ -103,6 +104,11 @@ graph TD
 | Multi-source knowledge base | CLIK, DVA.gov.au, legislation.gov.au, Support sites |
 | Multi-model routing | Auto-selects optimal model by query complexity |
 | Hardware detection | GPU detection with model recommendations |
+| Dynamic System Load | Real-time weighted metrics (GPU/CPU/VRAM/Mem/Disk/Net) with 2s auto-refresh |
+| System Load thresholds | Color-coded warnings: ≤50% green, 51-70% yellow, 71-90% orange, >90% red |
+| Hardware-adaptive weights | Dynamic weighting adjusts based on GPU availability and VRAM pressure |
+| Ollama activity detection | Shows when Ollama is processing requests |
+| GPU temperature monitoring | Warning when GPU temp ≥80°C |
 | Common veteran questions | Top 50 FAQ for improved semantic search |
 | Statement vs. question classification | Personal context acknowledged without LLM call |
 | Session context memory | Remembers veteran-provided context within session |
@@ -132,6 +138,21 @@ graph TD
 | **Windows 11** | ✅ WSL 2 + Docker Desktop |
 | **macOS** | ✅ CPU-only |
 | **Linux** | ✅ Ubuntu 20.04+ |
+
+### Python Dependencies
+
+Core dependencies (installed automatically via Dockerfile):
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| streamlit | ≥1.30.0 | Web UI framework |
+| streamlit-autorefresh | ≥1.0.0 | Auto-refresh for System Load |
+| psutil | ≥5.9.0 | System metrics (CPU, memory, disk) |
+| psycopg2-binary | ≥2.9.0 | PostgreSQL connection |
+| pgvector | ≥0.2.0 | Vector similarity search |
+| langchain-ollama | ≥0.1.0 | Ollama LLM integration |
+| playwright | ≥1.40.0 | Web scraping |
+| beautifulsoup4 | ≥4.12.0 | HTML parsing |
 
 ---
 
@@ -250,6 +271,40 @@ dva-assistant/
 | 6-8 GB | llama3.1:8b | qwen2.5:14b | codellama:7b | mxbai-embed-large |
 | 8-12 GB | llama3.1:8b | qwen2.5:14b | codellama:7b | mxbai-embed-large |
 | 12+ GB | llama3.1:8b | deepseek-coder-v2:236b | codellama:7b | mxbai-embed-large |
+
+---
+
+## System Load Monitoring
+
+The UI sidebar displays a **System Load (%)** bar that auto-refreshes every 2 seconds with dynamic color coding:
+
+| Load Range | Color | Hex |
+|-------------|-------|-----|
+| ≤50% | Green | #22c55e |
+| 51-70% | Canary Yellow | #ffef00 |
+| 71-90% | Orange | #f97316 |
+| >90% | Red | #ef4444 |
+
+### Dynamic Weighting
+
+System load uses hardware-adaptive weights:
+
+| Scenario | GPU | VRAM | CPU | Memory | Disk | Network |
+|----------|-----|------|-----|--------|------|---------|
+| GPU available (normal) | 40% | 15% | 20% | 10% | 10% | 5% |
+| GPU available (high VRAM ≥85%) | 30% | 25% | 15% | 10% | 15% | 5% |
+| CPU only | 0% | 0% | 50% | 25% | 20% | 5% |
+
+When Ollama is actively processing a request, GPU weight is boosted by 20%.
+
+### Warnings
+
+Warnings appear when:
+- GPU temperature ≥80°C
+- VRAM ≥90%
+- Memory ≥90%
+- CPU ≥90%
+- Any 2+ components hit critical (≥90%)
 
 ---
 
@@ -412,6 +467,39 @@ docker exec dva-web nvidia-smi
 | Docker network isolation | ✅ |
 | SQL injection prevention | ✅ |
 | Query audit logging | ✅ |
+
+---
+
+## Future Improvements
+
+The following enhancements are planned or under consideration for future releases:
+
+### High Priority
+
+| # | Improvement | Description |
+|---|-------------|-------------|
+| 1 | **Vector Index Optimization** | Implement HNSW index for faster similarity search at scale |
+| 2 | **Incremental Embedding** | Only embed new/changed content instead of full reembed |
+| 3 | **Query Caching** | Cache frequent queries to reduce LLM API calls |
+| 4 | **Better Error Handling** | Graceful degradation when Ollama models unavailable |
+
+### Medium Priority
+
+| # | Improvement | Description |
+|---|-------------|-------------|
+| 5 | **Multi-user Support** | User authentication and personalized history |
+| 6 | **Citation Verification** | Auto-verify links are still active |
+| 7 | **Model Hot-swap** | Switch models without container restart |
+| 8 | **Export Chat History** | Download conversation as PDF/Markdown |
+
+### Low Priority / Experimental
+
+| # | Improvement | Description |
+|---|-------------|-------------|
+| 9 | **Voice Input** | Speech-to-text for accessibility |
+| 10 | **RAG Fine-tuning** | Fine-tune embeddings on veteran Q&A data |
+| 11 | **Agentic Scraping** | LLM-guided intelligent crawling |
+| 12 | **Metrics Dashboard** | Historical system load graphs |
 
 ---
 

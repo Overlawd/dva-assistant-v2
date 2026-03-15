@@ -59,6 +59,15 @@ You should see 4-5 containers running:
 - dva-scraper
 - dva-scheduler (optional - for scheduled scraping)
 
+### Install UI Dependencies
+
+The first time you run the app, install the streamlit-autorefresh package:
+
+```powershell
+docker exec dva-web pip install streamlit-autorefresh>=1.0.0
+docker restart dva-web
+```
+
 ---
 
 ## Step 5: Pull AI Models

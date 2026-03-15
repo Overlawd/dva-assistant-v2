@@ -354,6 +354,64 @@ LLM_CTX: 8192                   # Context window tokens
 
 ---
 
+## System Load Monitoring
+
+```mermaid
+flowchart TD
+    START([UI refresh<br/>every 2s]) --> DETECT_HW[Detect Hardware<br/>GPU/VRAM]
+    
+    DETECT_HW --> GPU_PRESENT{Has GPU?}
+    
+    GPU_PRESENT -->|Yes| GET_GPU[Get GPU util<br/>VRAM util<br/>Temperature]
+    GPU_PRESENT -->|No| GET_CPU[Get CPU util<br/>Memory<br/>Disk]
+    
+    GET_GPU --> CHECK_VRAM{VRAM ≥85%?}
+    GET_CPU --> WEIGHT_CPU[Set CPU weights<br/>50% CPU, 25% Mem<br/>20% Disk, 5% Net]
+    
+    CHECK_VRAM -->|Yes| WEIGHT_HIGH[High VRAM weights<br/>30% GPU, 25% VRAM<br/>15% CPU, 15% Disk]
+    CHECK_VRAM -->|No| WEIGHT_NORMAL[Normal weights<br/>40% GPU, 15% VRAM<br/>20% CPU, 10% Disk]
+    
+    WEIGHT_CPU --> CALC_LOAD
+    WEIGHT_HIGH --> CALC_LOAD
+    WEIGHT_NORMAL --> CALC_LOAD
+    
+    CALC_LOAD[Calculate<br/>Weighted Load] --> OLLAMA_CHECK{Ollama<br/>Active?}
+    
+    OLLAMA_CHECK -->|Yes| BOOST_GPU[Boost GPU<br/>weight 20%]
+    OLLAMA_CHECK -->|No| CHECK_THRESH
+    
+    BOOST_GPU --> CHECK_THRESH{Check<br/>Thresholds}
+    
+    CHECK_THRESH -->|2+ ≥90%| CAP_100[Cap at 100%]
+    CHECK_THRESH -->|1 ≥92%| BOOST_LOAD[Boost 10%]
+    CHECK_THRESH -->|Normal| RETURN_LOAD
+    
+    CAP_100 --> RETURN_LOAD([Return<br/>System Load])
+    BOOST_LOAD --> RETURN_LOAD
+    
+    RETURN_LOAD --> COLOR[Apply Color<br/>Green/Yellow<br/>Orange/Red]
+    COLOR --> RENDER([Render bar chart<br/>in UI])
+```
+
+### Weight Schemas
+
+| Scenario | GPU | VRAM | CPU | Memory | Disk | Network |
+|----------|-----|------|-----|--------|------|---------|
+| GPU Normal | 40% | 15% | 20% | 10% | 10% | 5% |
+| GPU High VRAM | 30% | 25% | 15% | 10% | 15% | 5% |
+| CPU Only | 0% | 0% | 50% | 25% | 20% | 5% |
+
+### Thresholds
+
+| Level | Threshold | Color | Warning |
+|-------|-----------|-------|---------|
+| Safe | ≤50% | Green (#22c55e) | None |
+| Caution | 51-70% | Yellow (#ffef00) | None |
+| Warning | 71-90% | Orange (#f97316) | None |
+| Critical | >90% | Red (#ef4444) | GPU hot, VRAM/Mem/CPU critical |
+
+---
+
 ## File Purposes
 
 | File | Purpose |
