@@ -150,7 +150,7 @@ def render_sidebar():
         if load_val <= 50:
             load_color = "#22c55e"
         elif load_val <= 70:
-            load_color = "#eab308"
+            load_color = "#ffef00"
         elif load_val <= 90:
             load_color = "#f97316"
         else:
