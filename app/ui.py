@@ -70,6 +70,56 @@ def _get_ollama_active() -> bool:
         return False
 
 
+def _detect_active_task(ollama_active: bool, gpu_util: float, vram_util: float, 
+                        cpu_util: float, disk_util: float, network_util: float) -> str:
+    """Detect which hardware is currently bottlenecking based on Ollama API + thresholds."""
+    
+    if ollama_active and gpu_util >= 70:
+        return "gpu"
+    
+    if vram_util >= 90:
+        return "vram"
+    
+    if cpu_util >= 85 and gpu_util < 50:
+        return "cpu"
+    
+    if disk_util >= 80 and cpu_util < 70:
+        return "disk"
+    
+    if network_util >= 70 and gpu_util < 50 and cpu_util < 50:
+        return "network"
+    
+    return "none"
+
+
+def _get_task_weights(active_task: str, ramp_factor: float = 1.0) -> dict:
+    """Return weights with 95% emphasis on active task, ramping over 2-3 cycles."""
+    
+    base = {
+        "gpu": 0.40, "vram": 0.15, "cpu": 0.20, 
+        "memory": 0.10, "disk": 0.10, "network": 0.05
+    }
+    
+    task_emphasis = {
+        "gpu":    {"gpu": 0.95, "vram": 0.02, "cpu": 0.015, "memory": 0.005, "disk": 0.005, "network": 0.005},
+        "vram":   {"gpu": 0.02, "vram": 0.95, "cpu": 0.015, "memory": 0.005, "disk": 0.005, "network": 0.005},
+        "cpu":    {"gpu": 0.01, "vram": 0.01, "cpu": 0.95, "memory": 0.01, "disk": 0.005, "network": 0.005},
+        "disk":   {"gpu": 0.01, "vram": 0.01, "cpu": 0.02, "memory": 0.01, "disk": 0.93, "network": 0.01},
+        "network": {"gpu": 0.01, "vram": 0.01, "cpu": 0.02, "memory": 0.01, "disk": 0.01, "network": 0.93},
+    }
+    
+    if active_task == "none" or ramp_factor <= 0:
+        return base
+    
+    emphasis = task_emphasis.get(active_task, base)
+    
+    blended = {}
+    for k in base:
+        blended[k] = base[k] * (1 - ramp_factor * 0.95) + emphasis[k] * (ramp_factor * 0.95)
+    
+    return blended
+
+
 def get_system_load() -> dict:
     """Calculate weighted system load percentage with dynamic weights."""
     try:
@@ -284,11 +334,18 @@ def render_sidebar():
             st.caption("🤖 Ollama: Processing request...")
         
         with st.expander("📊 Component Details"):
+            st.markdown("""
+                <style>
+                    .metric-small .stMetric { font-size: 0.7rem; }
+                    .metric-small label { font-size: 0.65rem; }
+                </style>
+            """, unsafe_allow_html=True)
+            
             cols = st.columns(3)
             if sys_load.get("has_gpu"):
                 cols[0].metric("GPU", f"{sys_load.get('gpu', 0):.0f}%")
                 cols[1].metric("VRAM", f"{sys_load.get('vram', 0):.0f}%")
-                cols[2].metric("GPU Temp", f"{sys_load.get('gpu_temp', 0)}°C")
+                cols[2].metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
             else:
                 cols[0].metric("CPU", f"{sys_load.get('cpu', 0):.0f}%")
                 cols[1].metric("Memory", f"{sys_load.get('memory', 0):.0f}%")
