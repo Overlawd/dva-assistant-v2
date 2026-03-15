@@ -24,7 +24,7 @@ The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) sy
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
 - **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
 - **SQL specialist** - codellama:7b generates more accurate database queries
-- **Common veteran questions** - Top 50 FAQ integrated into search and sidebar
+- **Common veteran questions** - Top FAQ integrated into search and sidebar
 - **Session memory** - Remembers veteran's context (service, conditions) within session
 
 The system combines two retrieval strategies:
