@@ -467,29 +467,30 @@ if (-not $NoMenu) {
         Show-MainMenu
         $menuInput = Read-Host "Select option"
         
-        switch ($menuInput) {
-            "1" { Restart-Application }
-            "2" { Show-GPUMenu }
-            "3" { Switch-Model }
-            "4" { Set-GPUMode }
-            "5" { Show-Diagnostic }
-            "6" { Show-DataMenu }
-            "7" { Show-ModelMenu }
-            "8" { Show-LogsMenu }
-            "9" { Show-DatabaseMenu }
-            "Q" { 
+        switch -regex ($menuInput) {
+            "^[1-9]$" {
+                switch ($menuInput) {
+                    "1" { Restart-Application }
+                    "2" { Show-GPUMenu }
+                    "3" { Switch-Model }
+                    "4" { Set-GPUMode }
+                    "5" { Show-Diagnostic }
+                    "6" { Show-DataMenu }
+                    "7" { Show-ModelMenu }
+                    "8" { Show-LogsMenu }
+                    "9" { Show-DatabaseMenu }
+                }
+            }
+            "^[Qq]$" { 
                 Write-Host "Goodbye!" -ForegroundColor Green
                 $running = $false
             }
-            "q" { 
-                Write-Host "Goodbye!" -ForegroundColor Green
-                $running = $false
+            "" {
+                # Enter pressed with no input - do nothing
             }
             default {
-                if ($menuInput) {
-                    Write-Host "Invalid option. Please try again." -ForegroundColor Yellow
-                    Start-Sleep 1
-                }
+                Write-Host "Invalid option. Please try again." -ForegroundColor Yellow
+                Start-Sleep 1
             }
         }
     }
