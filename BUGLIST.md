@@ -11,6 +11,10 @@ Dont re-infer the response if the question was exactly the same as before, inste
 
 -------
 
+## DVA-SCHEDULER
+
+What is dva-scheduler and why is not NOT running?  When does it run and when should the container status of it not running matter?  If not required remove it from all code, docker and documentation.
+
 ## BACKUP
 
 Does the data management back up process actually back up everything except from github?  If not it needs to.  Also make the back up location path something user set.
