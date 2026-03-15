@@ -1,0 +1,11 @@
+DATABASE_URL=postgresql://postgres:vets_secure_pw@db:5432/dva_db
+OLLAMA_BASE_URL=http://ollama:11434
+
+MODEL_NAME=llama3.1:8b
+MODEL_COMPLEX=qwen2.5:14b
+SQL_MODEL=codellama:7b
+SUMMARIZER_MODEL=qwen2.5:7b
+EMBEDDING_MODEL=mxbai-embed-large
+EMBEDDING_DIM=1024
+
+LLM_CTX=8192

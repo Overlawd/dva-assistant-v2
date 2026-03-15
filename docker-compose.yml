@@ -1,0 +1,118 @@
+version: "3.8"
+
+services:
+  ollama:
+    image: ollama/ollama:0.6.1
+    container_name: dva-ollama-v2
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - dva_network_v2
+
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: dva-db-v2
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: vets_secure_pw
+      POSTGRES_DB: dva_db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d
+    networks:
+      - dva_network_v2
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: dva-web-v2
+    ports:
+      - "8502:8501"
+    environment:
+      DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: ${MODEL_NAME:-llama3.1:8b}
+      MODEL_COMPLEX: ${MODEL_COMPLEX:-qwen2.5:14b}
+      SQL_MODEL: ${SQL_MODEL:-codellama:7b}
+      SUMMARIZER_MODEL: ${SUMMARIZER_MODEL:-qwen2.5:7b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
+      LLM_CTX: ${LLM_CTX:-8192}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - dva_network_v2
+    volumes:
+      - ./app:/app
+    command: streamlit run ui.py --server.port=8501 --server.address=0.0.0.0
+
+  scraper:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    container_name: dva-scraper-v2
+    environment:
+      DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: ${MODEL_NAME:-llama3.1:8b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    networks:
+      - dva_network_v2
+    volumes:
+      - ./app:/app
+    command: tail -f /dev/null
+    healthcheck:
+      test: ["CMD-SHELL", "exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  scheduler:
+    image: mcuadros/ofelia:0.3.10
+    container_name: dva-scheduler-v2
+    depends_on:
+      - scraper
+    command: daemon --docker
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      OFELIA_INTERVAL: 0 0 2 1 * *  # Monthly at 2 AM
+    networks:
+      - dva_network_v2
+    labels:
+      ofelia.job-run: scraper-schedule
+      ofelia.job-run.command: "python scraper.py 200 --force"
+      ofelia.job-run.schedule: "0 2 1 * *"
+
+networks:
+  dva_network_v2:
+    driver: bridge
+
+volumes:
+  ollama_data:
+  db_data:
