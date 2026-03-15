@@ -5,9 +5,20 @@ param(
     [switch]$NoMenu
 )
 
-$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
-if (-not $PROJECT_ROOT) {
-    $PROJECT_ROOT = Get-Location
+$PROJECT_ROOT = $PSScriptRoot
+if (-not $PROJECT_ROOT -or $PROJECT_ROOT -eq "") {
+    $PROJECT_ROOT = Split-Path -Parent $PSCommandPath
+}
+if (-not $PROJECT_ROOT -or $PROJECT_ROOT -eq "") {
+    $PROJECT_ROOT = (Get-Location).Path
+}
+$PROJECT_ROOT = (Resolve-Path $PROJECT_ROOT -ErrorAction SilentlyContinue).Path
+
+$composeFile = Join-Path $PROJECT_ROOT "docker-compose.yml"
+if (-not (Test-Path $composeFile)) {
+    Write-Error "Could not find docker-compose.yml at: $composeFile"
+    Write-Host "Please run this script from the DVA Assistant project directory." -ForegroundColor Yellow
+    exit 1
 }
 
 $CONTAINER_PREFIX = "dva-"
@@ -48,64 +59,15 @@ function Show-MainMenu {
     Write-Host ""
     
     Write-Host "[1] Restart Application" -ForegroundColor Yellow
-    Write-Host "    - Full restart (stop + start)" -ForegroundColor DarkGray
-    Write-Host "    - Rolling restart (no downtime)" -ForegroundColor DarkGray
-    Write-Host "    - Per-service restart" -ForegroundColor DarkGray
-    Write-Host "    - Rebuild and restart" -ForegroundColor DarkGray
-    Write-Host ""
-    
     Write-Host "[2] GPU Management" -ForegroundColor Yellow
-    Write-Host "    - View GPU statistics (VRAM, utilization, temp)" -ForegroundColor DarkGray
-    Write-Host "    - Test GPU access in Docker" -ForegroundColor DarkGray
-    Write-Host ""
-    
     Write-Host "[3] Switch Model" -ForegroundColor Yellow
-    Write-Host "    - Change LLM model (chat)" -ForegroundColor DarkGray
-    Write-Host "    - Change reasoning model" -ForegroundColor DarkGray
-    Write-Host "    - Change SQL model" -ForegroundColor DarkGray
-    Write-Host "    - Change embedding model" -ForegroundColor DarkGray
-    Write-Host "    - Update context window size" -ForegroundColor DarkGray
-    Write-Host ""
-    
-    Write-Host "[4] Enable / Disable GPU Mode" -ForegroundColor Yellow
-    Write-Host "    - Toggle GPU acceleration in docker-compose.yml" -ForegroundColor DarkGray
-    Write-Host ""
-    
-    Write-Host "[5] Full Diagnostic" -ForegroundColor Yellow
-    Write-Host "    - Health check all containers" -ForegroundColor DarkGray
-    Write-Host "    - Test Ollama API" -ForegroundColor DarkGray
-    Write-Host "    - Test Streamlit UI" -ForegroundColor DarkGray
-    Write-Host "    - Check disk space" -ForegroundColor DarkGray
-    Write-Host "    - Auto-fix common issues" -ForegroundColor DarkGray
-    Write-Host ""
-    
+    Write-Host "[4] GPU Mode (Enable/Disable)" -ForegroundColor Yellow
+    Write-Host "[5] Diagnostic" -ForegroundColor Yellow
     Write-Host "[6] Data Management" -ForegroundColor Yellow
-    Write-Host "    - Create backup" -ForegroundColor DarkGray
-    Write-Host "    - List backups" -ForegroundColor DarkGray
-    Write-Host "    - Restore from backup" -ForegroundColor DarkGray
-    Write-Host "    - Delete old backups" -ForegroundColor DarkGray
-    Write-Host ""
-    
-    Write-Host "[7] Pull / Manage Models" -ForegroundColor Yellow
-    Write-Host "    - Pull new model" -ForegroundColor DarkGray
-    Write-Host "    - List installed models" -ForegroundColor DarkGray
-    Write-Host "    - Delete model" -ForegroundColor DarkGray
-    Write-Host ""
-    
+    Write-Host "[7] Manage Models" -ForegroundColor Yellow
     Write-Host "[8] View Logs" -ForegroundColor Yellow
-    Write-Host "    - Web container logs" -ForegroundColor DarkGray
-    Write-Host "    - Scraper container logs" -ForegroundColor DarkGray
-    Write-Host "    - Database logs" -ForegroundColor DarkGray
-    Write-Host "    - Ollama logs" -ForegroundColor DarkGray
-    Write-Host ""
-    
     Write-Host "[9] Database Utilities" -ForegroundColor Yellow
-    Write-Host "    - Run test_database.py" -ForegroundColor DarkGray
-    Write-Host "    - Run scraper" -ForegroundColor DarkGray
-    Write-Host "    - Run reembed tool" -ForegroundColor DarkGray
-    Write-Host "    - Check content stats" -ForegroundColor DarkGray
     Write-Host ""
-    
     Write-Host "[Q] Quit" -ForegroundColor Red
     Write-Host ""
 }
@@ -183,7 +145,8 @@ function Switch-Model {
     
     $envFile = Join-Path $PROJECT_ROOT ".env"
     if (-not (Test-Path $envFile)) {
-        Write-Host "Error: .env file not found!" -ForegroundColor Red
+        Write-Host "Error: .env file not found at: $envFile" -ForegroundColor Red
+        Write-Host "PROJECT_ROOT detected as: $PROJECT_ROOT" -ForegroundColor Yellow
         return
     }
     
@@ -244,7 +207,7 @@ function Switch-Model {
     }
 }
 
-function Toggle-GPUMode {
+function Set-GPUMode {
     Write-Header "Enable / Disable GPU Mode"
     
     $composeFile = Join-Path $PROJECT_ROOT "docker-compose.yml"
@@ -312,7 +275,7 @@ function Show-Diagnostic {
     $drive = (Get-Location).Drive.Name
     $disk = Get-PSDrive -Name $drive
     $freeGB = [math]::Round($disk.Free / 1GB, 2)
-    Write-Host "  $drive: free ${freeGB} GB"
+    Write-Host "  $drive`: free $freeGB GB"
     
     Write-Host ""
     if ($allHealthy) {
@@ -379,7 +342,7 @@ function Show-DataMenu {
                     $sqlFile = Join-Path $backupPath "db.sql"
                     if (Test-Path $sqlFile) {
                         Write-Host "Restoring database..." -ForegroundColor Yellow
-                        docker exec -i $dbContainer psql -U postgres dva_db < $sqlFile
+                        Get-Content $sqlFile | docker exec -i $dbContainer psql -U postgres dva_db
                         Write-Host "Restore complete!" -ForegroundColor Green
                     }
                 } else {
@@ -499,15 +462,16 @@ function Show-DatabaseMenu {
 
 # Main loop
 if (-not $NoMenu) {
-    do {
+    $running = $true
+    while ($running) {
         Show-MainMenu
-        $input = Read-Host "Select option"
+        $menuInput = Read-Host "Select option"
         
-        switch ($input) {
+        switch ($menuInput) {
             "1" { Restart-Application }
             "2" { Show-GPUMenu }
             "3" { Switch-Model }
-            "4" { Toggle-GPUMode }
+            "4" { Set-GPUMode }
             "5" { Show-Diagnostic }
             "6" { Show-DataMenu }
             "7" { Show-ModelMenu }
@@ -515,12 +479,18 @@ if (-not $NoMenu) {
             "9" { Show-DatabaseMenu }
             "Q" { 
                 Write-Host "Goodbye!" -ForegroundColor Green
-                break 
+                $running = $false
             }
             "q" { 
                 Write-Host "Goodbye!" -ForegroundColor Green
-                break 
+                $running = $false
+            }
+            default {
+                if ($menuInput) {
+                    Write-Host "Invalid option. Please try again." -ForegroundColor Yellow
+                    Start-Sleep 1
+                }
             }
         }
-    } while ($true)
+    }
 }
