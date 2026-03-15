@@ -22,7 +22,7 @@ cd C:\projects\dva-assistant
 ## Step 2: Configure
 
 ```powershell
-Rename-Item "_env" ".env
+Rename-Item "_env" ".env"
 ```
 
 That's it! The default settings work for most setups.
@@ -52,6 +52,7 @@ docker ps
 ```
 
 You should see 5 containers running:
+
 - dva-ollama
 - dva-db  
 - dva-web
@@ -74,12 +75,28 @@ docker exec dva-ollama ollama pull mxbai-embed-large
 
 ---
 
-## Step 6: Test It!
+## Step 6: Test It
 
 Open your browser to: **http://localhost:8501**
 
-Try asking:
-> "What is MRCA?"
+In the sidebar, you should see:
+- **GPU:** NVIDIA GeForce GTX 1060 6GB (or your GPU model)
+- **VRAM:** 6 GB (or your GPU memory)
+- **Common Questions** - Click to quick-start common veteran queries
+
+If it shows "CPU only", see the Troubleshooting section below.
+
+### Session Memory
+
+The assistant remembers context within your session:
+- **Statements** (e.g., "I served in the Army") are stored and used in future responses
+- **Questions** and answers are tracked for context continuity
+
+Try this:
+1. First, tell it something: "I served in the Army as a rifleman"
+2. Then ask: "What compensation am I entitled to?"
+
+The assistant will use your service context to provide relevant answers.
 
 ---
 
@@ -98,7 +115,7 @@ docker exec dva-scraper python scraper.py 300 --force
 ## Common Commands
 
 | Command | Description |
-|---------|-------------|
+| --------- | ------------- |
 | `docker compose restart` | Restart all services |
 | `docker compose logs -f` | View live logs |
 | `docker compose down` | Stop all services |
@@ -121,19 +138,30 @@ Manage models, backups, diagnostics, and more!
 ## Troubleshooting
 
 **Container won't start:**
+
 ```powershell
 docker compose logs <service-name>
 ```
 
 **Database issues:**
+
 ```powershell
 docker compose down -v
 docker compose up -d
 ```
 
-**GPU not detected:**
-- Install NVIDIA driver
-- Restart Docker Desktop
+**GPU not detected / shows CPU only:**
+
+1. Install NVIDIA driver and restart computer
+2. Restart Docker Desktop  
+3. Rebuild web container: `docker compose build web`
+
+Verify GPU access:
+```powershell
+docker exec dva-web nvidia-smi
+```
+
+If GPU is working, you'll see your graphics card in the output.
 
 ---
 

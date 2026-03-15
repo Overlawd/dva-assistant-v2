@@ -40,6 +40,7 @@ def init_session_state():
         "conversation_id": None,
         "conversation_name": "",
         "last_update": "",
+        "pending_question": None,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -51,6 +52,28 @@ def render_sidebar():
     with st.sidebar:
         st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
+        
+        st.divider()
+        
+        common_questions = main_module.get_common_questions()
+        if common_questions:
+            with st.expander("❓ Common Questions"):
+                for cat, questions in common_questions.items():
+                    st.markdown(f"**{cat}**")
+                    for q in questions[:3]:
+                        if st.button(q[:50] + "..." if len(q) > 50 else q, key=f"faq_{q[:20]}"):
+                            st.session_state.pending_question = q
+                            st.rerun()
+                    st.markdown("---")
+        
+        session_context = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
+        if session_context:
+            with st.expander(f"📝 Your Context ({len(session_context)} items)"):
+                for i, ctx in enumerate(session_context, 1):
+                    st.caption(f"{i}. {ctx[:100]}{'...' if len(ctx) > 100 else ''}")
+                if st.button("Clear Context", key="clear_context"):
+                    st.session_state.session_history = []
+                    st.rerun()
         
         st.divider()
         
@@ -124,65 +147,76 @@ def render_sources(sources: List[dict]):
         )
 
 
+def process_question(prompt: str):
+    """Process a question and store in session history."""
+    st.session_state.messages.append({
+        "role": "user",
+        "content": prompt,
+        "timestamp": datetime.now(),
+    })
+    
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    
+    with st.chat_message("assistant", avatar="🎖️"):
+        with st.spinner("Thinking..."):
+            prepared = main_module.prepare_rag_context(
+                question=prompt,
+                session_history=st.session_state.session_history,
+            )
+            
+            if prepared.get("is_statement"):
+                response = prepared.get("acknowledgement", "")
+                st.markdown(response)
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": response,
+                    "timestamp": datetime.now(),
+                    "input_type": "statement",
+                })
+                
+                st.session_state.session_history.append({
+                    "role": "user",
+                    "content": prompt,
+                    "input_type": "statement",
+                })
+            else:
+                answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
+                
+                st.markdown(answer)
+                render_sources(sources)
+                
+                st.caption(f"Model: {model} | Latency: {latency}ms")
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": answer,
+                    "sources": sources,
+                    "timestamp": datetime.now(),
+                    "metadata": {
+                        "model": model,
+                        "latency_ms": latency,
+                        "used_sql": prepared.get("used_sql", False),
+                    },
+                })
+                
+                st.session_state.session_history.extend([
+                    {"role": "user", "content": prompt, "input_type": "question"},
+                    {"role": "assistant", "content": answer, "input_type": "answer"},
+                ])
+
+
 def handle_input():
     """Handle user input and generate responses."""
+    if st.session_state.get("pending_question"):
+        prompt = st.session_state.pending_question
+        st.session_state.pending_question = None
+        process_question(prompt)
+        return
+    
     if prompt := st.chat_input("Ask about DVA entitlements..."):
-        st.session_state.messages.append({
-            "role": "user",
-            "content": prompt,
-            "timestamp": datetime.now(),
-        })
-        
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        
-        with st.chat_message("assistant", avatar="🎖️"):
-            with st.spinner("Thinking..."):
-                prepared = main_module.prepare_rag_context(
-                    question=prompt,
-                    session_history=st.session_state.session_history,
-                )
-                
-                if prepared.get("is_statement"):
-                    response = prepared.get("acknowledgement", "")
-                    st.markdown(response)
-                    
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": response,
-                        "timestamp": datetime.now(),
-                        "input_type": "statement",
-                    })
-                    
-                    st.session_state.session_history.append({
-                        "role": "user",
-                        "content": prompt,
-                        "input_type": "statement",
-                    })
-                else:
-                    answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
-                    
-                    st.markdown(answer)
-                    render_sources(sources)
-                    
-                    st.caption(f"Model: {model} | Latency: {latency}ms")
-                    
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": answer,
-                        "sources": sources,
-                        "timestamp": datetime.now(),
-                        "metadata": {
-                            "model": model,
-                            "latency_ms": latency,
-                            "used_sql": prepared.get("used_sql", False),
-                        },
-                    })
-                    
-                    st.session_state.session_history.extend([
-                        {"role": "user", "content": prompt, "input_type": "question"},
-                        {"role": "assistant", "content": answer, "input_type": "answer"},
-                    ])
+        process_question(prompt)
 
 
 def main():

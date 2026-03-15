@@ -20,6 +20,7 @@ from health import run_all_checks
 from model_manager import ModelManager
 from sql_generator import DVASQLGenerator
 from context_summarizer import ContextSummarizer
+from veteran_faq import COMMON_VETERAN_QUESTIONS, get_question_categories
 
 load_dotenv()
 
@@ -79,6 +80,52 @@ def _dva_act_priority(url: str) -> float:
         if fragment in url_lower:
             return weight
     return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Common veteran questions (FAQ) helpers
+# ---------------------------------------------------------------------------
+
+def is_common_faq_question(question: str) -> dict:
+    """Check if question matches common veteran FAQ patterns."""
+    q_lower = question.lower()
+    
+    for i, faq in enumerate(COMMON_VETERAN_QUESTIONS):
+        faq_lower = faq.lower()
+        words_in_faq = set(faq_lower.split())
+        words_in_q = set(q_lower.split())
+        
+        overlap = words_in_q & words_in_faq
+        if len(overlap) >= 3:
+            return {
+                "is_faq": True,
+                "matched_faq": faq,
+                "index": i,
+            }
+    
+    return {"is_faq": False}
+
+
+def get_faq_context() -> str:
+    """Get formatted FAQ context for system prompt."""
+    categories = get_question_categories()
+    lines = ["COMMON VETERAN QUESTIONS (for reference):"]
+    
+    for cat, questions in categories.items():
+        lines.append(f"\n--- {cat} ---")
+        for q in questions[:5]:
+            lines.append(f"Q: {q}")
+    
+    return "\n".join(lines)
+
+
+def get_common_questions() -> dict:
+    """Get common questions grouped by category for UI display."""
+    categories = get_question_categories()
+    result = {}
+    for cat, questions in categories.items():
+        result[cat] = questions[:5]
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -901,6 +948,7 @@ def flag_response(log_id: int, reason: str = "") -> bool:
 
 def prepare_rag_context(question: str, user_id: str = "anonymous", session_history: Optional[list] = None) -> dict:
     classification = classify_input(question)
+    faq_match = is_common_faq_question(question)
 
     if classification["type"] == "statement":
         return {
@@ -955,28 +1003,46 @@ def prepare_rag_context(question: str, user_id: str = "anonymous", session_histo
 
     model_to_use = get_routed_model(question)
 
-    system_prompt = f"""You are a helpful AI assistant providing information about Australian veteran entitlements under the DVA (Department of Veterans' Affairs) system.
+    faq_context = get_faq_context()
 
-IMPORTANT - MRCA PRIMACY FROM 1 JULY 2026:
-From 1 July 2026, ALL new compensation and rehabilitation claims are determined under the MRCA (Military Rehabilitation and Compensation Act 2004), regardless of when the veteran served. DRCA and VEA remain for existing/lodged-before-1-July-2026 claims only.
+    system_prompt_parts = [
+        "You are a helpful AI assistant providing information about Australian veteran entitlements under the DVA (Department of Veterans' Affairs) system.",
+        "",
+        "IMPORTANT - MRCA PRIMACY FROM 1 JULY 2026:",
+        "From 1 July 2026, ALL new compensation and rehabilitation claims are determined under the MRCA (Military Rehabilitation and Compensation Act 2004), regardless of when the veteran served. DRCA and VEA remain for existing/lodged-before-1-July-2026 claims only.",
+        "",
+        "When answering:",
+        "1. Lead with MRCA for any new claim questions",
+        "2. Only mention DRCA/VEA if directly relevant to the veteran's service period or existing grants",
+        "3. Always cite your sources using the provided context numbers",
+        "4. PERSONALIZE your response using the VETERAN-PROVIDED CONTEXT below - this is information the user has shared about their service or situation",
+        "",
+    ]
 
-When answering:
-1. Lead with MRCA for any new claim questions
-2. Only mention DRCA/VEA if directly relevant to the veteran's service period or existing grants
-3. Always cite your sources using the provided context numbers
+    if faq_context:
+        system_prompt_parts.extend([faq_context, ""])
 
-{veteran_context}
+    if veteran_context:
+        system_prompt_parts.extend([veteran_context, ""])
+        system_prompt_parts.append("IMPORTANT: Use the veteran-provided context above to personalize your answer to their specific situation.")
 
-{past_context}
+    if past_context:
+        system_prompt_parts.extend([past_context, ""])
 
-{context}
+    system_prompt_parts.extend([
+        "CONTEXT FROM KNOWLEDGE BASE:",
+        context,
+        "",
+        "Based only on the provided context, answer the veteran's question. Cite sources as [1], [2], etc. at the end of your response. If you're unsure, say so honestly.",
+    ])
 
-Based only on the provided context, answer the veteran's question. Cite sources as [1], [2], etc. at the end of your response. If you're unsure, say so honestly."""
+    system_prompt = "\n".join(system_prompt_parts)
 
     return {
         "is_statement": False,
         "input_type": "question",
         "classification": classification,
+        "faq_match": faq_match,
         "veteran_context": veteran_context,
         "past_context": past_context,
         "structured_data": structured_data,

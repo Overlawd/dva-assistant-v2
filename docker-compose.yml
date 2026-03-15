@@ -54,6 +54,13 @@ services:
       SUMMARIZER_MODEL: ${SUMMARIZER_MODEL:-qwen2.5:7b}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
       LLM_CTX: ${LLM_CTX:-8192}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
     depends_on:
       db:
         condition: service_healthy

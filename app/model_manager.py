@@ -57,7 +57,8 @@ class ModelManager:
                 if lines:
                     parts = lines[0].split(",")
                     if len(parts) >= 2:
-                        info["vram_gb"] = int(parts[0].strip())
+                        vram_mb = int(parts[0].strip())
+                        info["vram_gb"] = round(vram_mb / 1024)
                         info["gpu_name"] = parts[1].strip()
                         info["cuda_available"] = True
         except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):

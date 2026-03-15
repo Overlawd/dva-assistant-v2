@@ -23,6 +23,8 @@ The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) sy
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
 - **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
 - **SQL specialist** - codellama:7b generates more accurate database queries
+- **Common veteran questions** - Top 50 FAQ integrated into search and sidebar
+- **Session memory** - Remembers veteran's context (service, conditions) within session
 
 The system combines two retrieval strategies:
 - **Text-to-SQL** for structured queries (Acts, service categories, standards of proof)
@@ -101,11 +103,12 @@ graph TD
 | Multi-source knowledge base | CLIK, DVA.gov.au, legislation.gov.au, Support sites |
 | Multi-model routing | Auto-selects optimal model by query complexity |
 | Hardware detection | GPU detection with model recommendations |
+| Common veteran questions | Top 50 FAQ for improved semantic search |
 | Statement vs. question classification | Personal context acknowledged without LLM call |
-| Veteran context block | Session context lifted into prompt |
+| Session context memory | Remembers veteran-provided context within session |
+| Persistent Q&A memory | Stores Q&A pairs in database for retrieval |
 | Lexical + semantic re-ranking | TF-IDF + cosine similarity |
 | DVA Acts priority boost | MRCA, DRCA, VEA content boosted |
-| Persistent conversation memory | Cross-session learning |
 | Conflict detection | Authoritative vs community source disagreement |
 | Full audit log | Every query logged with flag support |
 | Change-detection scraping | SHA-256 hash skips unchanged pages |
@@ -170,10 +173,14 @@ Copy-Item ".\app\init.sql" ".\initdb\init.sql"
 
 ### 4. Start Stack
 
+> **Important:** The web container requires GPU access for optimal performance. The docker-compose.yml includes GPU passthrough configuration.
+
 ```bash
 docker compose build
 docker compose up -d
 ```
+
+> **First-time setup:** After containers start, verify GPU is detected in the UI sidebar. If it shows "CPU only", check that NVIDIA drivers are installed and Docker Desktop has GPU access enabled.
 
 ### 5. Pull Models
 
@@ -211,6 +218,8 @@ dva-assistant/
     ├── context_summarizer.py      ← Context compression
     ├── reembed.py                 ← Embedding reindexing
     ├── health.py                  ← Health checks
+    ├── veteran_faq.py             ← Common veteran questions
+    ├── migrate.py                 ← Schema verification
     ├── requirements.txt
     └── Dockerfile
 ```
@@ -272,7 +281,20 @@ dva-assistant/
 | Ollama not responding | `docker compose restart ollama` |
 | Models not found | `docker exec dva-ollama ollama pull <model>` |
 | UI won't load | `docker compose restart web` |
-| GPU not detected | Install NVIDIA driver |
+| GPU shows "CPU only" | 1. Install NVIDIA driver 2. Restart Docker Desktop 3. Rebuild web: `docker compose build web` |
+| nvidia-smi fails in container | Install NVIDIA Container Toolkit or use Docker Desktop with WSL 2 |
+
+### GPU Configuration
+
+The docker-compose.yml includes GPU passthrough for both the `ollama` and `web` containers. If GPU is not detected:
+
+1. **Windows:** Ensure NVIDIA drivers are installed and Docker Desktop has WSL 2 integration enabled
+2. **Linux:** Install NVIDIA Container Toolkit: `nvidia-ctk runtime configure --runtime=docker`
+
+Verify GPU access:
+```bash
+docker exec dva-web nvidia-smi
+```
 
 ---
 
