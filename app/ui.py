@@ -335,8 +335,6 @@ def render_sidebar():
         
         st.write("")
         
-        st_autorefresh(interval=2000, key="system_load_refresh")
-        
         st.subheader("📊 System Status")
         
         sys_load = get_system_load()
@@ -490,9 +488,6 @@ def process_question(prompt: str):
         "timestamp": datetime.now(),
     })
     
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    
     prepared = main_module.prepare_rag_context(
         question=prompt,
         session_history=st.session_state.session_history,
@@ -534,12 +529,10 @@ def process_question(prompt: str):
                 {"role": "assistant", "content": answer, "input_type": "answer"},
             ])
         except Exception as e:
-            st.error(f"Error generating answer: {str(e)}")
             st.session_state.messages.append({
                 "role": "assistant",
-                "content": "Sorry, I encountered an error processing your request.",
+                "content": f"Error: {str(e)}",
                 "timestamp": datetime.now(),
-                "metadata": {"error": str(e)},
             })
 
 
@@ -549,24 +542,34 @@ def handle_input():
         prompt = st.session_state.pending_question
         st.session_state.pending_question = None
         process_question(prompt)
+        st.rerun()
         return
     
     if prompt := st.chat_input("Ask about DVA entitlements..."):
         process_question(prompt)
+        st.rerun()
 
 
 def main():
-    init_session_state()
-    
-    render_sidebar()
-    
-    st.title("DVA Assistant")
-    st.caption("Ask questions about Australian veteran entitlements, compensation, and DVA services")
+    try:
+        init_session_state()
+        
+        # Auto-refresh system stats every 2 seconds
+        st_autorefresh(interval=2000, key="system_load_refresh")
+        
+        render_sidebar()
+        
+        st.title("DVA Assistant")
+        st.caption("Ask questions about Australian veteran entitlements, compensation, and DVA services")
 
-    for msg in st.session_state.messages:
-        render_message_item(msg)
-    
-    handle_input()
+        for msg in st.session_state.get("messages", []):
+            render_message_item(msg)
+        
+        handle_input()
+    except Exception as e:
+        st.error(f"Application error: {str(e)}")
+        import traceback
+        st.code(traceback.format_exc())
 
 
 if __name__ == "__main__":
