@@ -61,7 +61,7 @@ function Show-MainMenu {
     Write-Header "DVA Assistant - Admin Console"
     
     $running = Test-ContainersRunning
-    Write-Host "Running services: $($running -join ', ')" -ForegroundColor $(if ($running.Count -eq 5) { "Green" } else { "Yellow" })
+    Write-Host "Running services: $($running -join ', ')" -ForegroundColor $(if ($running.Count -ge 4) { "Green" } else { "Yellow" })
     Write-Host ""
     
     Write-Host "[1] Restart Application" -ForegroundColor Yellow

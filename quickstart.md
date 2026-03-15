@@ -51,13 +51,13 @@ Wait ~30 seconds for containers to start, then check status:
 docker ps
 ```
 
-You should see 5 containers running:
+You should see 4-5 containers running:
 
 - dva-ollama
 - dva-db  
 - dva-web
 - dva-scraper
-- dva-scheduler
+- dva-scheduler (optional - for scheduled scraping)
 
 ---
 

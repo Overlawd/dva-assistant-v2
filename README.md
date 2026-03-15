@@ -92,7 +92,7 @@ graph TD
 | `dva-db` | `pgvector/pgvector:pg15` | PostgreSQL 15 + pgvector extension |
 | `dva-web` | `dva-assistant-web` | Streamlit UI + RAG pipeline |
 | `dva-scraper` | `dva-assistant-scraper` | Multi-source web crawler |
-| `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled scrape jobs |
+| `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled scrape jobs (runs monthly) |
 
 ---
 

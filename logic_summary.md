@@ -60,7 +60,7 @@ flowchart TD
     SQL_CHECK -->|No| SKIP_SQL[Skip SQL<br/>execution]
     
     EXEC_SQL --> VECTOR_SEARCH
-    SKIP_SECTOR --> VECTOR_SEARCH
+    SKIP_SQL --> VECTOR_SEARCH
     
     VECTOR_SEARCH[Vector Search<br/>Semantic retrieval] --> RERANK[Re-rank results<br/>TF-IDF + Cosine]
     

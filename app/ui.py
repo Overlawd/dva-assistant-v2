@@ -10,11 +10,14 @@ from datetime import datetime
 from typing import List, Optional
 
 import streamlit as st
+from streamlit_autorefresh import st_autorefresh
 import psutil
 import requests
 from dotenv import load_dotenv
 
 import main as main_module
+
+st.set_page_config(page_title="DVA Assistant", page_icon="🎖️", layout="wide")
 
 
 def get_system_load() -> dict:
@@ -57,7 +60,7 @@ def get_system_load() -> dict:
             mem_util * weights["memory"]
         )
         
-        if gpu_util >= 100 or cpu_util >= 100 or network_util >= 100 or mem_util >= 100:
+        if gpu_util >= 92 or cpu_util >= 92 or network_util >= 92 or mem_util >= 92:
             final_load = 100.0
         else:
             final_load = min(weighted_load, 100.0)
@@ -137,16 +140,32 @@ def render_sidebar():
         
         st.divider()
         
+        st_autorefresh(interval=2000, key="system_load_refresh")
+        
         st.subheader("📊 System Status")
         
         sys_load = get_system_load()
         load_val = sys_load.get("load", 0)
         
-        load_color = "green" if load_val < 50 else "orange" if load_val < 80 else "red"
+        if load_val <= 50:
+            load_color = "#22c55e"
+        elif load_val <= 70:
+            load_color = "#eab308"
+        elif load_val <= 90:
+            load_color = "#f97316"
+        else:
+            load_color = "#ef4444"
         
         st.write("**System Load (%)**")
         
-        st.progress(load_val / 100)
+        st.markdown(f"""
+            <div style="background-color: #1e1e1e; border-radius: 8px; height: 24px; width: 100%;">
+                <div style="background-color: {load_color}; border-radius: 8px; height: 100%; width: {load_val}%; 
+                     display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">
+                    {load_val:.0f}%
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
         st.write("")
         
