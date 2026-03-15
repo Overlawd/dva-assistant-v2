@@ -107,6 +107,11 @@ function Restart-Application {
             Write-Host "Done!" -ForegroundColor Green
         }
     }
+    
+    if ($choice -ne "B") {
+        Start-Sleep 2
+        Clear-Host
+    }
 }
 
 function Show-GPUMenu {
@@ -161,97 +166,10 @@ function Show-GPUMenu {
             }
         }
     }
-}
-
-function Switch-Model {
-    Write-Header "Switch Model"
     
-    $envFile = Join-Path $PROJECT_ROOT ".env"
-    if (-not (Test-Path $envFile)) {
-        Write-Host "Error: .env file not found at: $envFile" -ForegroundColor Red
-        Write-Host "PROJECT_ROOT detected as: $PROJECT_ROOT" -ForegroundColor Yellow
-        return
-    }
-    
-    Write-Host "[1] Change Chat Model (MODEL_NAME)" -ForegroundColor Yellow
-    Write-Host "[2] Change Reasoning Model (MODEL_COMPLEX)" -ForegroundColor Yellow
-    Write-Host "[3] Change SQL Model (SQL_MODEL)" -ForegroundColor Yellow
-    Write-Host "[4] Change Summarizer Model (SUMMARIZER_MODEL)" -ForegroundColor Yellow
-    Write-Host "[5] Change Embedding Model (EMBEDDING_MODEL)" -ForegroundColor Yellow
-    Write-Host "[6] Change Context Window (LLM_CTX)" -ForegroundColor Yellow
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    
-    if ($choice -eq "B") { return }
-    
-    $varName = switch ($choice) {
-        "1" { "MODEL_NAME" }
-        "2" { "MODEL_COMPLEX" }
-        "3" { "SQL_MODEL" }
-        "4" { "SUMMARIZER_MODEL" }
-        "5" { "EMBEDDING_MODEL" }
-        "6" { "LLM_CTX" }
-        default { $null }
-    }
-    
-    if ($varName) {
-        if ($choice -eq "6") {
-            $newValue = Read-Host "Enter new $varName value (current: $((Get-Content $envFile | Select-String "^$varName=" -Raw) -replace '.*=', ''))"
-        } else {
-            Write-Host "Common models:" -ForegroundColor Cyan
-            if ($choice -eq "1") { 
-                Write-Host "  Chat: llama3.1:8b, llama3:8b, mistral:7b, phi3:3.8b-mini, qwen2.5:7b"
-            } elseif ($choice -eq "2") { 
-                Write-Host "  Reasoning: qwen2.5:14b, deepseek-coder-v2:236b, mixtral:8x7b"
-            } elseif ($choice -eq "3") { 
-                Write-Host "  SQL: codellama:7b, llama3.1:8b"
-            } elseif ($choice -eq "4") { 
-                Write-Host "  Summarizer: qwen2.5:7b, llama3.1:8b"
-            } elseif ($choice -eq "5") { 
-                Write-Host "  Embeddings: mxbai-embed-large, nomic-embed-text"
-            }
-            $newValue = Read-Host "Enter new $varName value"
-        }
-        
-        if ($newValue) {
-            $content = Get-Content $envFile -Raw
-            if ($content -match "^$varName=") {
-                $content = $content -replace "^$varName=.*", "$varName=$newValue"
-            } else {
-                $content += "`n$varName=$newValue"
-            }
-            Set-Content -Path $envFile -Value $content
-            Write-Host "Updated $varName=$newValue" -ForegroundColor Green
-            Write-Host "Restarting services..." -ForegroundColor Yellow
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart web scraper
-        }
-    }
-}
-
-function Set-GPUMode {
-    Write-Header "Enable / Disable GPU Mode"
-    
-    $composeFile = Join-Path $PROJECT_ROOT "docker-compose.yml"
-    $content = Get-Content $composeFile -Raw
-    
-    if ($content -match "count: all") {
-        Write-Host "GPU mode is currently: ENABLED" -ForegroundColor Green
-        $confirm = Read-Host "Disable GPU mode? (y/n)"
-        if ($confirm -eq "y") {
-            $content = $content -replace "count: all", "count: 0"
-            Set-Content -Path $composeFile -Value $content
-            Write-Host "GPU mode disabled. Restart required." -ForegroundColor Yellow
-        }
-    } else {
-        Write-Host "GPU mode is currently: DISABLED" -ForegroundColor Red
-        $confirm = Read-Host "Enable GPU mode? (y/n)"
-        if ($confirm -eq "y") {
-            $content = $content -replace "count: 0", "count: all"
-            Set-Content -Path $composeFile -Value $content
-            Write-Host "GPU mode enabled. Restart required." -ForegroundColor Green
-        }
+    if ($choice -ne "B") {
+        Start-Sleep 2
+        Clear-Host
     }
 }
 
@@ -337,6 +255,9 @@ function Show-Diagnostic {
     } else {
         Write-Host "Some issues detected. Run option 1 to restart." -ForegroundColor Yellow
     }
+    
+    Start-Sleep 2
+    Clear-Host
 }
 
 function Show-DataMenu {
@@ -447,6 +368,9 @@ function Show-DataMenu {
             }
         }
     }
+    
+    Start-Sleep 2
+    Clear-Host
 }
 
 function Show-ModelMenu {
@@ -549,6 +473,9 @@ function Show-ModelMenu {
             }
         }
     }
+    
+    Start-Sleep 2
+    Clear-Host
 }
 
 function Show-LogsMenu {
@@ -633,6 +560,7 @@ if (-not $NoMenu) {
                 }
             }
             "^[Qq]$" { 
+                Clear-Host
                 Write-Host "Goodbye!" -ForegroundColor Green
                 $running = $false
             }
