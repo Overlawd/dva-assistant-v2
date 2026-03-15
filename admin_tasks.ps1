@@ -233,17 +233,29 @@ function Show-GPUMenu {
                 Write-Host "                 TEST GPU IN DOCKER" -ForegroundColor Cyan
                 Write-Host "=============================================================" -ForegroundColor Cyan
                 Write-Host ""
+                
+                $cudaImage = "nvidia/cuda:12.0.0-base-ubuntu22.04"
+                $imageExists = docker images -q $cudaImage 2>$null
+                
+                if (-not $imageExists) {
+                    Write-Host "Pulling CUDA image (first time only)..." -ForegroundColor Yellow
+                    docker pull -q $cudaImage 2>$null
+                    Write-Host "Image ready." -ForegroundColor Green
+                    Write-Host ""
+                }
+                
                 Write-Host "Testing GPU access from within Docker container..." -ForegroundColor Yellow
                 Write-Host ""
                 
                 try {
-                    $dockerTest = docker run --rm --gpus all nvidia/cuda:12.0.0-base-ubuntu22.04 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>&1
-                    if ($LASTEXITCODE -eq 0 -and $dockerTest -and $dockerTest -notmatch "error|failed|Error") {
+                    $dockerTest = docker run --rm --gpus all $cudaImage nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>&1
+                    if ($LASTEXITCODE -eq 0 -and $dockerTest -and $dockerTest -notmatch "error|failed|Error|not found") {
                         Write-Host "  [OK] GPU accessible in Docker!" -ForegroundColor Green
+                        $dockerTest = $dockerTest -replace ".*NVIDIA ", "NVIDIA "
                         Write-Host "  $dockerTest" -ForegroundColor Cyan
                     } else {
                         Write-Host "  [FAIL] GPU NOT accessible in Docker" -ForegroundColor Red
-                        if ($dockerTest -match "error|failed") {
+                        if ($dockerTest -match "error|failed|not found") {
                             Write-Host "  $dockerTest" -ForegroundColor Yellow
                         }
                     }
