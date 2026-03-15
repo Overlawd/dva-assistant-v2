@@ -261,6 +261,8 @@ dva-assistant/
 
 The admin console provides a menu-driven interface for managing the DVA Assistant stack.
 
+### Main Menu
+
 | Option | Description |
 | --- | --- |
 | [1] Restart Application | Full/rolling/per-service restart, rebuild |
@@ -273,6 +275,89 @@ The admin console provides a menu-driven interface for managing the DVA Assistan
 - Screen clears after actions complete (except errors)
 - "Press any key to continue" for output-heavy operations
 - Consolidated menu structure for easier navigation
+- GPU statistics refresh with 'R' key
+
+---
+
+### GPU Management (Option 2)
+
+| Sub-Option | Description |
+| --- | --- |
+| [1] View GPU Statistics | Real-time GPU stats (utilization, memory, temperature, power). Press R to refresh, any key to exit. |
+| [2] Test GPU in Docker | Verifies GPU is accessible from within Docker containers. Auto-pulls CUDA image on first run. |
+| [3] View NVIDIA Driver | Shows installed driver version and compute capability |
+| [4] Toggle GPU Mode | Enable/disable GPU acceleration in docker-compose.yml. Requires restart to take effect. |
+
+---
+
+### Manage Models (Option 3)
+
+| Sub-Option | Description |
+| --- | --- |
+| [1] List Installed | Shows all Ollama models currently pulled |
+| [2] Pull Model | Download a new model from Ollama library |
+| [3] Delete Model | Remove a model to free disk space |
+| [4] Switch Model | Change active model for chat/reasoning/SQL/summarization/embeddings |
+
+#### Available Models (configured in .env)
+| Model Type | Variable | Default | Purpose |
+| --- | --- | --- | --- |
+| Chat | MODEL_NAME | llama3.1:8b | General conversation |
+| Reasoning | MODEL_COMPLEX | qwen2.5:14b | Complex queries |
+| SQL | SQL_MODEL | codellama:7b | Database queries |
+| Summarizer | SUMMARIZER_MODEL | qwen2.5:7b | Context compression |
+| Embeddings | EMBEDDING_MODEL | mxbai-embed-large | Vector search (1024-dim) |
+
+---
+
+### Data Management (Option 4)
+
+| Sub-Option | Description |
+| --- | --- |
+| [1] Create Backup | Saves database to `backups/` folder with timestamp |
+| [2] List Backups | Shows available backup folders and dates |
+| [3] Restore | Restores database from a backup folder |
+| [4] Delete Old | Removes backups older than 30 days |
+| [5] Database Utilities | Run tests, scraper, reembed tool |
+
+#### Database Utilities (within Data Management)
+
+| Sub-Option | Description |
+| --- | --- |
+| [1] Test Import | Verifies Python modules load correctly |
+| [2] Run Scraper | Scrapes 100 pages (respects 7-day freshness) |
+| [3] Force Scrape | Scrapes 3000 pages ignoring freshness |
+| [4] Reembed Tool | Migrates embeddings to new model (see below) |
+| [5] Content Stats | Shows scraped content by source type |
+
+#### Reembed Tool
+
+The reembed tool migrates content embeddings from one model to another (e.g., nomic-embed-text to mxbai-embed-large).
+
+> **Note:** v2 already uses `mxbai-embed-large` by default. This tool is mainly useful if you migrated data from v1.
+
+```bash
+# Run reembed
+docker exec dva-scraper python reembed.py
+
+# Verify migration status
+docker exec dva-scraper python reembed.py --verify
+
+# Create HNSW index for faster vector search
+docker exec dva-scraper python reembed.py --create-index
+```
+
+---
+
+### Diagnostic (Option 5)
+
+| Sub-Option | Description |
+| --- | --- |
+| Status | Shows all container statuses (ollama, db, web, scraper) |
+| Ollama Test | Verifies API connectivity and lists models |
+| Database Test | Checks connection and content count |
+| Disk Space | Shows available drive space |
+| [V] View Logs | Tail container logs in real-time |
 
 ---
 
