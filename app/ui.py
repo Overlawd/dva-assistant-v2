@@ -513,36 +513,34 @@ def process_question(prompt: str):
             "content": prompt,
             "input_type": "statement",
         })
-        
-        st.rerun()
     else:
-        with st.chat_message("assistant", avatar="🎖️"):
-            with st.spinner("Thinking..."):
-                answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
-                
-                st.markdown(answer)
-                render_sources(sources)
-                
-                st.caption(f"Model: {model} | Latency: {latency}ms")
-                
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": answer,
-                    "sources": sources,
-                    "timestamp": datetime.now(),
-                    "metadata": {
-                        "model": model,
-                        "latency_ms": latency,
-                        "used_sql": prepared.get("used_sql", False),
-                    },
-                })
-                
-                st.session_state.session_history.extend([
-                    {"role": "user", "content": prompt, "input_type": "question"},
-                    {"role": "assistant", "content": answer, "input_type": "answer"},
-                ])
-        
-        st.rerun()
+        try:
+            answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
+            
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer,
+                "sources": sources,
+                "timestamp": datetime.now(),
+                "metadata": {
+                    "model": model,
+                    "latency_ms": latency,
+                    "used_sql": prepared.get("used_sql", False),
+                },
+            })
+            
+            st.session_state.session_history.extend([
+                {"role": "user", "content": prompt, "input_type": "question"},
+                {"role": "assistant", "content": answer, "input_type": "answer"},
+            ])
+        except Exception as e:
+            st.error(f"Error generating answer: {str(e)}")
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": "Sorry, I encountered an error processing your request.",
+                "timestamp": datetime.now(),
+                "metadata": {"error": str(e)},
+            })
 
 
 def handle_input():
