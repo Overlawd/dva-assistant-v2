@@ -278,9 +278,6 @@ dva-assistant/
 
 ## System Load Monitoring
 
-> **TODO:** Auto-refresh for System Load is currently disabled due to Streamlit limitations.
-> The `st_autorefresh` and `st.fragment` approaches cause app restarts. Future fix needed.
-
 The UI sidebar displays a **System Load (%)** bar with dynamic color coding:
 
 | Load Range | Color | Hex |
@@ -312,16 +309,35 @@ When a specific hardware resource becomes the bottleneck, the system detects it 
 | Disk I/O-Bound | Disk ≥80% + CPU <70% | "Disk I/O-Bound" |
 | Network-Bound | Network ≥70% + GPU/CPU <50% | "Network-Bound" |
 
-**Ramping:** Weight emphasis ramps from 0% to 95% over 3 refresh cycles (2-second intervals) for smooth transitions.
+**Ramping:** Weight emphasis ramps from 0% to 95% over 3 refresh cycles for smooth transitions.
 
 ### Warnings
 
-Warnings appear when:
-- GPU temperature ≥80°C
-- VRAM ≥90%
-- Memory ≥90%
-- CPU ≥90%
-- Any 2+ components hit critical (≥90%)
+Warnings appear when thresholds are exceeded:
+
+| Warning | Threshold | Behavior |
+|---------|-----------|----------|
+| GPU hot | GPU Temp ≥80°C | Shows warning, dismissible for 30s |
+| VRAM critical | VRAM ≥90% | Shows warning with ✕ button, dismissible for 30s |
+| Memory critical | Memory ≥90% | Shows warning, dismissible for 30s |
+| CPU critical | CPU ≥90% | Shows warning, dismissible for 30s |
+
+### Model Suggestions
+
+The System Status section includes an expandable **Model Suggestion** panel that:
+
+- Automatically detects available VRAM
+- Suggests optimal model based on VRAM (14b, 8b, 7b, or codellama)
+- Recommends upgrade if current model doesn't fit
+- Works with hardware upgrades (e.g., 6GB → 12GB GPU)
+
+| Available VRAM | Suggested Model |
+|----------------|-----------------|
+| ≥10 GB | qwen2.5:14b |
+| ≥6 GB | llama3.1:8b |
+| ≥5.5 GB | qwen2.5:7b |
+| ≥5 GB | codellama:7b |
+| <5 GB | llama3.1:8b (or reduce embeddings)
 
 ---
 

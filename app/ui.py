@@ -2,11 +2,6 @@
 ui.py — Streamlit UI for DVA Assistant
 
 Enhanced with multi-model routing display and hardware info.
-
-TODO: Implement partial page refresh for System Load (st.fragment or st_autorefresh)
-- Current approaches cause Streamlit app to restart/crash
-- Need Streamlit 1.55+ fragment-based rerendering or alternative solution
-- See: https://discuss.streamlit.io/t/fragment-auto-refresh/
 """
 
 import os
@@ -27,11 +22,66 @@ st.set_page_config(page_title="DVA Assistant", page_icon="🎖️", layout="wide
 if 'network_history' not in st.session_state:
     st.session_state.network_history = []
 
+if 'last_warning_time' not in st.session_state:
+    st.session_state.last_warning_time = {}
+
+if 'dismissed_warnings' not in st.session_state:
+    st.session_state.dismissed_warnings = set()
+
+if 'vram_warning_dismissed' not in st.session_state:
+    st.session_state.vram_warning_dismissed = False
+
+if 'vram_warning_dismiss_time' not in st.session_state:
+    st.session_state.vram_warning_dismiss_time = 0
+
 THRESHOLDS = {
     "critical": 90,
     "warning": 70,
     "caution": 50,
 }
+
+MODEL_VRAM_REQUIREMENTS = {
+    "qwen2.5:14b": 9.0,
+    "llama3.1:8b": 5.0,
+    "qwen2.5:7b": 4.8,
+    "codellama:7b": 4.0,
+    "mxbai-embed-large": 0.7,
+}
+
+
+def _get_model_suggestion(vram_total_gb: float, vram_free_gb: float, current_model: str = None) -> dict:
+    """Suggest best model based on VRAM and current usage."""
+    suggestion = {"suggested": None, "reason": "", "vram_needed": 0}
+    
+    embedding_vram = MODEL_VRAM_REQUIREMENTS.get("mxbai-embed-large", 0.7)
+    available_for_model = vram_free_gb - embedding_vram
+    
+    if available_for_model >= MODEL_VRAM_REQUIREMENTS.get("qwen2.5:14b", 9.0):
+        suggestion["suggested"] = "qwen2.5:14b"
+        suggestion["reason"] = "Sufficient VRAM for 14b model"
+        suggestion["vram_needed"] = MODEL_VRAM_REQUIREMENTS["qwen2.5:14b"]
+    elif available_for_model >= MODEL_VRAM_REQUIREMENTS.get("llama3.1:8b", 5.0):
+        suggestion["suggested"] = "llama3.1:8b"
+        suggestion["reason"] = "Sufficient VRAM for 8b model"
+        suggestion["vram_needed"] = MODEL_VRAM_REQUIREMENTS["llama3.1:8b"]
+    elif available_for_model >= MODEL_VRAM_REQUIREMENTS.get("qwen2.5:7b", 4.8):
+        suggestion["suggested"] = "qwen2.5:7b"
+        suggestion["reason"] = "Sufficient VRAM for 7b model"
+        suggestion["vram_needed"] = MODEL_VRAM_REQUIREMENTS["qwen2.5:7b"]
+    elif available_for_model >= MODEL_VRAM_REQUIREMENTS.get("codellama:7b", 4.0):
+        suggestion["suggested"] = "codellama:7b"
+        suggestion["reason"] = "Sufficient VRAM for codellama"
+        suggestion["vram_needed"] = MODEL_VRAM_REQUIREMENTS["codellama:7b"]
+    else:
+        suggestion["suggested"] = "llama3.1:8b"
+        suggestion["reason"] = f"Need more VRAM. Current: {vram_free_gb:.1f}GB free"
+        suggestion["vram_needed"] = MODEL_VRAM_REQUIREMENTS["llama3.1:8b"]
+    
+    if current_model and suggestion["suggested"] != current_model:
+        if MODEL_VRAM_REQUIREMENTS.get(current_model, 999) > available_for_model:
+            suggestion["reason"] = f"{current_model} doesn't fit. {suggestion['reason']}"
+    
+    return suggestion
 
 
 def _detect_hardware() -> dict:
@@ -40,23 +90,25 @@ def _detect_hardware() -> dict:
         "has_gpu": False,
         "vram_total_gb": 0,
         "vram_used_gb": 0,
+        "vram_free_gb": 0,
         "gpu_name": "CPU only",
         "gpu_temp": 0,
     }
     
     try:
         result = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total,memory.used,name,temperature.gpu", 
+            ["nvidia-smi", "--query-gpu=memory.total,memory.used,memory.free,name,temperature.gpu", 
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0 and result.stdout.strip():
             parts = result.stdout.strip().split(",")
-            if len(parts) >= 4:
+            if len(parts) >= 5:
                 hw["vram_total_gb"] = int(parts[0].strip()) / 1024
                 hw["vram_used_gb"] = int(parts[1].strip()) / 1024
-                hw["gpu_name"] = parts[2].strip()
-                hw["gpu_temp"] = int(parts[3].strip())
+                hw["vram_free_gb"] = int(parts[2].strip()) / 1024
+                hw["gpu_name"] = parts[3].strip()
+                hw["gpu_temp"] = int(parts[4].strip())
                 hw["has_gpu"] = True
     except Exception:
         pass
@@ -119,19 +171,14 @@ def _detect_active_task(ollama_active: bool, gpu_util: float, vram_util: float,
     
     if ollama_active and gpu_util >= 70:
         return "gpu"
-    
     if vram_util >= 90:
         return "vram"
-    
     if cpu_util >= 85 and gpu_util < 50:
         return "cpu"
-    
     if disk_util >= 80 and cpu_util < 70:
         return "disk"
-    
     if network_util >= 70 and gpu_util < 50 and cpu_util < 50:
         return "network"
-    
     return "none"
 
 
@@ -250,18 +297,28 @@ def get_system_load() -> dict:
         current_time = time.time()
         
         if hw.get("gpu_temp", 0) >= 80:
-            warnings.append("GPU hot")
+            if "gpu_temp" not in st.session_state.dismissed_warnings:
+                last_time = st.session_state.last_warning_time.get("gpu_temp", 0)
+                if current_time - last_time > 30:
+                    warnings.append("GPU hot")
         
         if vram_util >= 90:
-            last_vram_warning = st.session_state.get("last_vram_warning", 0)
-            if current_time - last_vram_warning >= 30:
-                warnings.append("VRAM critical")
-                st.session_state.last_vram_warning = current_time
+            if not st.session_state.get("vram_warning_dismissed"):
+                last_time = st.session_state.get("vram_warning_dismiss_time", 0)
+                if current_time - last_time > 30:
+                    warnings.append("VRAM critical")
         
         if mem_util >= 90:
-            warnings.append("Memory critical")
+            if "memory" not in st.session_state.dismissed_warnings:
+                last_time = st.session_state.last_warning_time.get("memory", 0)
+                if current_time - last_time > 30:
+                    warnings.append("Memory critical")
+        
         if cpu_util >= 90:
-            warnings.append("CPU critical")
+            if "cpu" not in st.session_state.dismissed_warnings:
+                last_time = st.session_state.last_warning_time.get("cpu", 0)
+                if current_time - last_time > 30:
+                    warnings.append("CPU critical")
         
         return {
             "load": final_load,
@@ -273,6 +330,8 @@ def get_system_load() -> dict:
             "network": network_util,
             "gpu_temp": hw.get("gpu_temp", 0),
             "gpu_name": hw.get("gpu_name", "CPU only"),
+            "vram_total_gb": hw.get("vram_total_gb", 0),
+            "vram_free_gb": hw.get("vram_free_gb", 0),
             "ollama_active": ollama_active,
             "active_task": active_task,
             "ramp_factor": ramp_factor,
@@ -284,19 +343,13 @@ def get_system_load() -> dict:
             "load": 0, "gpu": 0, "vram": 0, "cpu": 0, 
             "memory": 0, "disk": 0, "network": 0,
             "gpu_temp": 0, "gpu_name": "CPU only",
+            "vram_total_gb": 0, "vram_free_gb": 0,
             "ollama_active": False, "active_task": "none", "ramp_factor": 0,
             "warnings": [], "has_gpu": False
         }
 
 
 load_dotenv()
-
-st.set_page_config(
-    page_title="DVA Assistant",
-    page_icon="🎖️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-)
 
 COLORS = {
     "LEGISLATION": "#1982c4",
@@ -316,10 +369,255 @@ def init_session_state():
         "conversation_name": "",
         "last_update": "",
         "pending_question": None,
+        "refresh_counter": 0,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
+
+def render_system_status():
+    """Render system status section - uses fragment for auto-refresh."""
+    # Use a fragment to enable partial rerendering
+    render_status_fragment()
+
+
+def _render_system_status_widget():
+    """Render a self-updating HTML/JS widget for system status."""
+    import time
+    
+    sys_load = get_system_load()
+    load_val = sys_load.get("load", 0)
+    
+    if load_val <= 50:
+        load_color = "#22c55e"
+    elif load_val <= 70:
+        load_color = "#ffef00"
+    elif load_val <= 90:
+        load_color = "#f97316"
+    else:
+        load_color = "#ef4444"
+    
+    vram_info = ""
+    if sys_load.get("has_gpu"):
+        vram_total = sys_load.get("vram_total_gb", 0)
+        vram_free = sys_load.get("vram_free_gb", 0)
+        vram_util = sys_load.get("vram", 0)
+        gpu_util = sys_load.get("gpu", 0)
+        gpu_temp = sys_load.get("gpu_temp", 0)
+        vram_info = f"""
+        <div class="status-row">
+            <span>VRAM:</span> <span>{vram_util:.0f}% ({vram_free:.1f}GB free)</span>
+        </div>
+        <div class="status-row">
+            <span>GPU:</span> <span>{gpu_util:.0f}%</span>
+        </div>
+        <div class="status-row">
+            <span>Temp:</span> <span>{gpu_temp}°C</span>
+        </div>
+        """
+    else:
+        cpu_util = sys_load.get("cpu", 0)
+        mem_util = sys_load.get("memory", 0)
+        disk_util = sys_load.get("disk", 0)
+        vram_info = f"""
+        <div class="status-row">
+            <span>CPU:</span> <span>{cpu_util:.0f}%</span>
+        </div>
+        <div class="status-row">
+            <span>Memory:</span> <span>{mem_util:.0f}%</span>
+        </div>
+        <div class="status-row">
+            <span>Disk:</span> <span>{disk_util:.0f}%</span>
+        </div>
+        """
+    
+    warnings_html = ""
+    for warn in sys_load.get("warnings", []):
+        warnings_html += f'<div class="warning-badge">⚠️ {warn}</div>'
+    
+    ollama_status = "🤖 Ollama: Processing..." if sys_load.get("ollama_active") else ""
+    
+    task_html = ""
+    active_task = sys_load.get("active_task")
+    if active_task and active_task not in ("none", "None", None, ""):
+        task_labels = {
+            "gpu": "GPU-Bound",
+            "vram": "VRAM-Bound",
+            "cpu": "CPU-Bound",
+            "disk": "Disk I/O-Bound",
+            "network": "Network-Bound"
+        }
+        task_label = task_labels.get(active_task, active_task)
+        task_html = f'<div class="task-badge">⚡ {task_label}</div>'
+    
+    widget_html = f"""
+    <div class="system-status-widget">
+        <style>
+            .system-status-widget {{
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            }}
+            .load-bar-container {{
+                background-color: #1e1e1e;
+                border-radius: 8px;
+                height: 24px;
+                width: 100%;
+                margin: 8px 0;
+            }}
+            .load-bar {{
+                background-color: {load_color};
+                border-radius: 8px;
+                height: 100%;
+                width: {load_val}%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: white;
+                font-size: 12px;
+                font-weight: bold;
+                transition: width 0.3s ease;
+            }}
+            .status-row {{
+                display: flex;
+                justify-content: space-between;
+                font-size: 0.75rem;
+                padding: 2px 0;
+                color: #9ca3af;
+            }}
+            .status-row span:last-child {{
+                color: #e5e7eb;
+                font-weight: 500;
+            }}
+            .warning-badge {{
+                background-color: #fef3c7;
+                border: 1px solid #f59e0b;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 0.75rem;
+                color: #92400e;
+                margin: 4px 0;
+                display: inline-block;
+            }}
+            .task-badge {{
+                background-color: #dbeafe;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 0.75rem;
+                color: #1e40af;
+                margin-top: 4px;
+                display: inline-block;
+            }}
+            .section-title {{
+                font-size: 0.85rem;
+                font-weight: 600;
+                color: #e5e7eb;
+                margin-top: 8px;
+            }}
+        </style>
+        
+        <div class="section-title">System Load</div>
+        <div class="load-bar-container">
+            <div class="load-bar">{load_val:.0f}%</div>
+        </div>
+        
+        {warnings_html}
+        {ollama_status}
+        {task_html}
+        
+        <div class="section-title">Component Details</div>
+        {vram_info}
+    </div>
+    """
+    
+    st.markdown(widget_html, unsafe_allow_html=True)
+
+
+def render_system_status():
+    """Render system status section."""
+    _render_system_status_widget()
+    
+    st.write("**System Load (%)**")
+    
+    st.markdown(f"""
+        <div style="background-color: #1e1e1e; border-radius: 8px; height: 24px; width: 100%;">
+            <div style="background-color: {load_color}; border-radius: 8px; height: 100%; width: {load_val}%; 
+                 display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">
+                {load_val:.0f}%
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    if sys_load.get("warnings"):
+        for warn in sys_load.get("warnings", []):
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"""
+                    <div style="background-color: #fef3c7; border: 1px solid #f59e0b; 
+                                border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; color: #92400e;">
+                        ⚠️ {warn}
+                    </div>
+                """, unsafe_allow_html=True)
+            with col2:
+                if st.button("✕", key=f"dismiss_{warn}"):
+                    if warn == "VRAM critical":
+                        st.session_state.vram_warning_dismissed = True
+                        st.session_state.vram_warning_dismiss_time = time.time()
+                    else:
+                        st.session_state.dismissed_warnings.add(warn)
+                        st.session_state.last_warning_time[warn] = time.time()
+                    st.rerun()
+    
+    if sys_load.get("ollama_active"):
+        st.caption("🤖 Ollama: Processing request...")
+    
+    active_task = sys_load.get("active_task")
+    if active_task and active_task not in ("none", "None", None, ""):
+        task_labels = {
+            "gpu": "GPU-Bound (embedding/inference)",
+            "vram": "VRAM-Bound (memory pressure)",
+            "cpu": "CPU-Bound (processing)",
+            "disk": "Disk I/O-Bound",
+            "network": "Network-Bound"
+        }
+        task_label = task_labels.get(active_task, active_task)
+        ramp = sys_load.get("ramp_factor", 0) * 100
+        st.caption(f"⚡ Task: {task_label} ({ramp:.0f}% emphasis)")
+    
+    with st.expander("📊 Component Details"):
+        if sys_load.get("has_gpu"):
+            cols = st.columns(3)
+            cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>GPU<br/><b>{sys_load.get('gpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
+            cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>VRAM<br/><b>{sys_load.get('vram', 0):.0f}%</b></div>", unsafe_allow_html=True)
+            cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Temp<br/><b>{sys_load.get('gpu_temp', 0)}°C</b></div>", unsafe_allow_html=True)
+        else:
+            cols = st.columns(3)
+            cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>CPU<br/><b>{sys_load.get('cpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
+            cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
+            cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Disk<br/><b>{sys_load.get('disk', 0):.0f}%</b></div>", unsafe_allow_html=True)
+        
+        cols2 = st.columns(2)
+        if sys_load.get("has_gpu"):
+            cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
+            cols2[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
+        else:
+            cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
+    
+    if sys_load.get("has_gpu"):
+        st.markdown("---")
+        vram_total = sys_load.get("vram_total_gb", 0)
+        vram_free = sys_load.get("vram_free_gb", 0)
+        
+        model_suggestion = _get_model_suggestion(vram_total, vram_free)
+        
+        st.markdown(f"**GPU:** {sys_load.get('gpu_name', 'Unknown')}")
+        st.markdown(f"**VRAM:** {vram_total:.0f} GB ({vram_free:.1f} GB free)")
+        
+        if model_suggestion["suggested"]:
+            with st.expander("💡 Model Suggestion"):
+                st.markdown(f"**Recommended:** `{model_suggestion['suggested']}`")
+                st.caption(model_suggestion["reason"])
+                if model_suggestion["vram_needed"] > 0:
+                    st.caption(f"Needs: ~{model_suggestion['vram_needed']:.1f} GB")
 
 
 def render_sidebar():
@@ -341,76 +639,9 @@ def render_sidebar():
         
         st.markdown("---")
         
-        st.subheader("📊 System Status")
-        st.write("")
+        render_system_status()
         
-        sys_load = get_system_load()
-        load_val = sys_load.get("load", 0)
-        
-        if load_val <= 50:
-            load_color = "#22c55e"
-        elif load_val <= 70:
-            load_color = "#ffef00"
-        elif load_val <= 90:
-            load_color = "#f97316"
-        else:
-            load_color = "#ef4444"
-        
-        st.write("**System Load (%)**")
-        
-        st.markdown(f"""
-            <div style="background-color: #1e1e1e; border-radius: 8px; height: 24px; width: 100%;">
-                <div style="background-color: {load_color}; border-radius: 8px; height: 100%; width: {load_val}%; 
-                     display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;">
-                    {load_val:.0f}%
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        if sys_load.get("warnings"):
-            warning_text = " | ".join(sys_load["warnings"])
-            st.warning(f"⚠️ {warning_text}")
-        
-        if sys_load.get("ollama_active"):
-            st.caption("🤖 Ollama: Processing request...")
-        
-        active_task = sys_load.get("active_task")
-        if active_task and active_task not in ("none", "None", None, ""):
-            task_labels = {
-                "gpu": "GPU-Bound (embedding/inference)",
-                "vram": "VRAM-Bound (memory pressure)",
-                "cpu": "CPU-Bound (processing)",
-                "disk": "Disk I/O-Bound",
-                "network": "Network-Bound"
-            }
-            task_label = task_labels.get(active_task, active_task)
-            ramp = sys_load.get("ramp_factor", 0) * 100
-            st.caption(f"⚡ Task: {task_label} ({ramp:.0f}% emphasis)")
-        
-        with st.expander("📊 Component Details"):
-            if sys_load.get("has_gpu"):
-                cols = st.columns(3)
-                cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>GPU<br/><b>{sys_load.get('gpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
-                cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>VRAM<br/><b>{sys_load.get('vram', 0):.0f}%</b></div>", unsafe_allow_html=True)
-                cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Temp<br/><b>{sys_load.get('gpu_temp', 0)}°C</b></div>", unsafe_allow_html=True)
-            else:
-                cols = st.columns(3)
-                cols[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>CPU<br/><b>{sys_load.get('cpu', 0):.0f}%</b></div>", unsafe_allow_html=True)
-                cols[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
-                cols[2].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Disk<br/><b>{sys_load.get('disk', 0):.0f}%</b></div>", unsafe_allow_html=True)
-            
-            cols2 = st.columns(2)
-            if sys_load.get("has_gpu"):
-                cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
-                cols2[1].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Memory<br/><b>{sys_load.get('memory', 0):.0f}%</b></div>", unsafe_allow_html=True)
-            else:
-                cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
-        
-        st.write("")
-        
-        hw_info = main_module.get_hardware_info()
-        st.markdown(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
-        st.markdown(f"**VRAM:** {hw_info.get('vram_gb', 0)} GB ({hw_info.get('vram_free_gb', 0)} GB free)")
+        st.markdown("---")
         
         models_info = main_module.get_available_models()
         if models_info.get("status") == "connected":
@@ -418,8 +649,6 @@ def render_sidebar():
             with st.expander(f"🔌 Models ({len(installed)} installed)"):
                 for m in installed:
                     st.caption(f"• {m}")
-        
-        st.markdown("---")
         
         common_questions = main_module.get_common_questions()
         if common_questions:
@@ -512,7 +741,6 @@ def process_question(prompt: str):
         })
     else:
         try:
-            # Show animated thinking indicator using HTML placeholder
             thinking_html = """
             <style>
                 @keyframes pulse-1 { 0%, 100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
@@ -531,7 +759,7 @@ def process_question(prompt: str):
                 <div class="thinking-dot dot-1"></div>
                 <div class="thinking-dot dot-2"></div>
                 <div class="thinking-dot dot-3"></div>
-                <span class="thinking-text">Switching on, getting it done...</span>
+                <span class="thinking-text">Veteran Services at work...</span>
             </div>
             """
             
@@ -540,7 +768,6 @@ def process_question(prompt: str):
             
             answer, sources, latency, model = main_module.generate_answer(prepared, prompt)
             
-            # Clear thinking indicator and show final answer
             thinking_placeholder.empty()
             
             st.session_state.messages.append({
@@ -576,7 +803,7 @@ def handle_input():
         st.rerun()
         return
     
-    if prompt := st.chat_input("Ask anything about DVA, or tell me something I need to know to better help you..."):
+    if prompt := st.chat_input("Ask about DVA entitlements..."):
         process_question(prompt)
         st.rerun()
 
