@@ -1,4 +1,4 @@
-# DVA Assistant - Quick Start Guide
+# DVA Wizard v3.0 - Quick Start Guide
 
 Get up and running in under 10 minutes!
 
@@ -13,8 +13,8 @@ Get up and running in under 10 minutes!
 ## Step 1: Get the Code
 
 ```powershell
-git clone <repo-url> C:\projects\dva-assistant
-cd C:\projects\dva-assistant
+git clone https://github.com/Overlawd/dva_wizard_v3.git G:\projects\dva_wizard_v3
+cd G:\projects\dva_wizard_v3
 ```
 
 ---
@@ -81,10 +81,13 @@ docker exec dva-ollama ollama pull mxbai-embed-large
 Open your browser to: **http://localhost:8501**
 
 In the sidebar, you should see:
-- **System Load** - Real-time system metrics (GPU, VRAM, Temp, Net)
-- **Common Questions** - Click to quick-start common veteran queries
+- **📊 System Status** - Real-time system metrics (GPU, VRAM, Temp)
+- **❓ Common Questions** - Expandable panel with common veteran queries
+- **⚙️ Settings** - Session info and knowledge base stats
 
-The System Status updates automatically when you interact with the page.
+The v3.0 UI has a single-page dashboard layout:
+- Main area: Chat interface
+- Sidebar: Collapsible panels for System Status, Questions, Settings
 
 ### Session Memory
 

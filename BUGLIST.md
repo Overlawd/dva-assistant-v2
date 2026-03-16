@@ -1,3 +1,13 @@
+# DVA Wizard v3.0 - Bug List & Feature Requests
+
+## Migration Notes (v3.0)
+
+- Migrated from dva-assistant-v2 to dva_wizard_v3
+- New GitHub repo: https://github.com/Overlawd/dva_wizard_v3.git
+- Added new seed URLs for veteran support sites
+
+---
+
 # FIX the following errors in scraper.py
 
 * Expression of type "None" cannot be assigned to parameter of type "str"

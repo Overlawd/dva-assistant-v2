@@ -1,6 +1,6 @@
-# 🎖️ ADF Veteran's DVA Assistant
+# 🎖️ DVA Wizard v3.0
 
-> **Enhanced RAG system with multi-model routing, improved embeddings, and hardware-adaptive model selection**
+> **Enhanced RAG system with multi-model routing, improved embeddings, hardware-adaptive model selection, and single-page dashboard UI**
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://www.docker.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)](https://www.postgresql.org/)
@@ -14,17 +14,18 @@
 
 ## Overview
 
-The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) system that lets veterans query DVA legislation, policy, and support services in plain language. Every component runs locally inside Docker — no cloud APIs, no data leaving the network.
+The **DVA Wizard v3.0** is a Retrieval-Augmented Generation (RAG) system that lets veterans query DVA legislation, policy, and support services in plain language. Every component runs locally inside Docker — no cloud APIs, no data leaving the network.
 
-### Key Features
+### Key Features (v3.0)
 
+- **Single-page dashboard** - Chat in main area with collapsible sidebar sections
+- **Native Streamlit sidebar** - System Status, Common Questions, Settings in expandable panels
+- **Independent operation** - Each sidebar section works without breaking chat
 - **Multi-model routing** - Automatically selects optimal model based on query complexity
 - **Hardware detection** - Auto-detects GPU and recommends optimal models
-- **Dynamic System Load** - Real-time metrics in sidebar, updates on page interaction
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
 - **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
 - **SQL specialist** - codellama:7b generates more accurate database queries
-- **Common veteran questions** - Dropdown in sidebar for quick access
 - **Session memory** - Remembers veteran's context (service, conditions) within session
 - **Duplicate question detection** - Avoids re-inference for repeated questions
 - **Recent questions context** - Uses last 100 questions to improve response relevance
@@ -170,8 +171,8 @@ Core dependencies (installed automatically via Dockerfile):
 ### 1. Clone and Setup
 
 ```powershell
-git clone <repo-url> C:\projects\dva-assistant
-cd C:\projects\dva-assistant
+git clone https://github.com/Overlawd/dva_wizard_v3.git G:\projects\dva_wizard_v3
+cd G:\projects\dva_wizard_v3
 ```
 
 ### 2. Configure Environment
@@ -231,7 +232,7 @@ Navigate to [http://localhost:8501](http://localhost:8501)
 ## Project Structure
 
 ```
-dva-assistant/
+dva_wizard_v3/
 ├── .env                          ← environment config
 ├── _env                          ← environment template
 ├── docker-compose.yml
@@ -241,7 +242,7 @@ dva-assistant/
 │   └── init.sql                  ← Database schema
 └── app/
     ├── main.py                   ← Core RAG pipeline
-    ├── ui.py                     ← Streamlit interface
+    ├── ui.py                     ← Streamlit interface (single-page dashboard)
     ├── scraper.py                ← Web crawler
     ├── model_manager.py           ← Hardware detection
     ├── sql_generator.py           ← SQL generation
@@ -596,6 +597,33 @@ The following enhancements are planned or under consideration for future release
 
 ---
 
-**Version:** 2.0
+## UI Features (v3.0)
+
+### Single-Page Dashboard Layout
+
+The v3.0 UI uses a single-page dashboard layout:
+
+- **Main Area (75%)**: Chat interface with messages and input
+- **Sidebar (25%)**: Three collapsible panels
+
+### Sidebar Panels
+
+| Panel | Description |
+|-------|-------------|
+| 📊 System Status | Always visible at top, shows GPU/CPU load, VRAM, temperature |
+| ❓ Common Questions | Expandable dropdown of common veteran questions |
+| ⚙️ Settings | Session info, recent questions, knowledge base stats |
+
+### How It Works
+
+1. Chat works independently - questions and answers flow in main area
+2. Sidebar panels are collapsible - click arrows to expand/collapse
+3. System Status updates when you interact with the page (send message, click expanders)
+4. Common Questions - select a question to automatically populate chat input
+5. Settings - view session history, recent questions, clear session
+
+---
+
+**Version:** 3.0
 **Last updated:** March 2026
 **Author:** Ben Reay

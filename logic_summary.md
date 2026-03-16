@@ -1,4 +1,4 @@
-# DVA Assistant - Logic Flow Summary
+# DVA Wizard v3.0 - Logic Flow Summary
 
 ## High-Level Architecture
 
