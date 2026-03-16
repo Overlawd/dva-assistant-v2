@@ -132,7 +132,7 @@ On Windows, run the admin console:
 ```
 
 The admin console provides menu-driven access to:
-- Start / Restart Application
+- Start / Restart Application (adapts based on status)
 - GPU Settings
 - Model Management
 - Data Management

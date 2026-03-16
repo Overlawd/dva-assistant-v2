@@ -357,7 +357,7 @@ The admin console provides a menu-driven interface for managing the DVA Assistan
 
 | Option | Description |
 | --- | --- |
-| [1] Start / Restart Application | Start/Stop/Restart application, rebuild |
+| [1] Start / Restart Application | Start/Stop/Restart (dynamic based on status) |
 | [2] GPU Settings | View stats, test GPU, toggle GPU mode |
 | [3] Model Management | List/pull/delete models, switch active model |
 | [4] Data Management | Backup/restore, database utilities |
@@ -366,13 +366,26 @@ The admin console provides a menu-driven interface for managing the DVA Assistan
 ### Features
 - Screen clears after actions complete (except errors)
 - "Press any key to continue" for output-heavy operations
-- Consolidated menu structure for easier navigation
+- Application menu adapts: if running shows restart/stop options, if stopped shows start option
 - GPU statistics refresh with 'R' key
-- Start application option when not running
 
 ---
 
-### GPU Settings (Option 2)
+### Application Control (Option 1)
+
+When application is **running**:
+| Sub-Option | Description |
+| --- | --- |
+| [1] Restart All | Stop all, then start all |
+| [2] Rolling restart | Restart without stopping |
+| [3] Restart specific service | Restart one container |
+| [4] Rebuild and restart | Rebuild images, then start |
+| [5] Stop Application | Stop all containers |
+
+When application is **not running**:
+| Sub-Option | Description |
+| --- | --- |
+| [1] Start Application | Start all containers |
 
 | Sub-Option | Description |
 | --- | --- |

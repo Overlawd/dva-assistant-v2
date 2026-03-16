@@ -34,8 +34,11 @@ if 'session_history' not in st.session_state:
 if 'pending_question' not in st.session_state:
     st.session_state.pending_question = None
 
-if 'generating' not in st.session_state:
-    st.session_state.generating = False
+    if 'generating' not in st.session_state:
+        st.session_state.generating = False
+
+if 'last_processed_question' not in st.session_state:
+    st.session_state.last_processed_question = None
 
 
 load_dotenv()
@@ -358,8 +361,6 @@ def process_question(prompt: str):
             "sources": sources,
             "metadata": metadata,
         })
-    
-    st.rerun()
 
 
 def check_vram_warnings():
@@ -412,8 +413,9 @@ def main():
     
     render_sidebar()
     
-    if st.session_state.pending_question:
+    if st.session_state.pending_question and st.session_state.pending_question != st.session_state.get('last_processed_question'):
         question = st.session_state.pending_question
+        st.session_state.last_processed_question = question
         st.session_state.pending_question = None
         process_question(question)
     

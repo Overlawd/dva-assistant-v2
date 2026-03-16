@@ -75,66 +75,92 @@ function Show-MainMenu {
 }
 
 function Start-Restart-Application {
-    Write-Header "Start / Restart Application"
+    $backToMain = $false
     
-    $running = Test-ContainersRunning
-    Write-Host "Current status: $($running.Count) containers running" -ForegroundColor $(if ($running.Count -ge 4) { "Green" } else { "Yellow" })
-    Write-Host ""
-    
-    Write-Host "[1] Start Application" -ForegroundColor Green
-    Write-Host "[2] Restart All (stop + start)" -ForegroundColor Yellow
-    Write-Host "[3] Rolling restart (no downtime)" -ForegroundColor Yellow
-    Write-Host "[4] Restart specific service" -ForegroundColor Yellow
-    Write-Host "[5] Rebuild and restart" -ForegroundColor Yellow
-    Write-Host "[6] Stop Application" -ForegroundColor Red
-    Write-Host "[B] Back to main menu" -ForegroundColor Gray
-    Write-Host ""
-    
-    $choice = Read-Host "Select option"
-    
-    switch ($choice) {
-        "1" {
-            Write-Host "Starting all containers..." -ForegroundColor Green
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
-            Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
-            Start-Sleep 10
-            docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+    while (-not $backToMain) {
+        $running = Test-ContainersRunning
+        $isRunning = $running.Count -ge 4
+        
+        Write-Header "Application Control"
+        
+        Write-Host "Current status: " -NoNewline
+        if ($isRunning) {
+            Write-Host "Running" -ForegroundColor Green
+            Write-Host "Services: $($running -join ', ')" -ForegroundColor Cyan
+        } else {
+            Write-Host "Not Running" -ForegroundColor Red
         }
-        "2" {
-            Write-Host "Stopping all containers..." -ForegroundColor Yellow
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
-            Write-Host "Starting all containers..." -ForegroundColor Yellow
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
-            Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
-            Start-Sleep 10
-            docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+        Write-Host ""
+        
+        if ($isRunning) {
+            Write-Host "[1] Restart All (stop + start)" -ForegroundColor Yellow
+            Write-Host "[2] Rolling restart (no downtime)" -ForegroundColor Yellow
+            Write-Host "[3] Restart specific service" -ForegroundColor Yellow
+            Write-Host "[4] Rebuild and restart" -ForegroundColor Yellow
+            Write-Host "[5] Stop Application" -ForegroundColor Red
+            Write-Host "[B] Back to main menu" -ForegroundColor Gray
+            Write-Host ""
+            
+            $choice = Read-Host "Select option"
+            
+            switch ($choice) {
+                "1" {
+                    Write-Host "Stopping all containers..." -ForegroundColor Yellow
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
+                    Write-Host "Starting all containers..." -ForegroundColor Yellow
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
+                    Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
+                    Start-Sleep 10
+                    docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+                }
+                "2" {
+                    Write-Host "Performing rolling restart..." -ForegroundColor Yellow
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart
+                    Write-Host "Done!" -ForegroundColor Green
+                }
+                "3" {
+                    Write-Host "Available services: ollama, db, web, api, scraper, scheduler" -ForegroundColor Cyan
+                    $svc = Read-Host "Enter service name"
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart $svc
+                }
+                "4" {
+                    Write-Host "Rebuilding containers..." -ForegroundColor Yellow
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") build
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
+                    Write-Host "Done!" -ForegroundColor Green
+                }
+                "5" {
+                    Write-Host "Stopping all containers..." -ForegroundColor Red
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
+                    Write-Host "All containers stopped." -ForegroundColor Yellow
+                }
+                "B" { $backToMain = $true }
+                "" { $backToMain = $true }
+            }
+        } else {
+            Write-Host "[1] Start Application" -ForegroundColor Green
+            Write-Host "[B] Back to main menu" -ForegroundColor Gray
+            Write-Host ""
+            
+            $choice = Read-Host "Select option"
+            
+            switch ($choice) {
+                "1" {
+                    Write-Host "Starting all containers..." -ForegroundColor Green
+                    docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
+                    Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
+                    Start-Sleep 10
+                    docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+                }
+                "B" { $backToMain = $true }
+                "" { $backToMain = $true }
+            }
         }
-        "3" {
-            Write-Host "Performing rolling restart..." -ForegroundColor Yellow
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart
-            Write-Host "Done!" -ForegroundColor Green
+        
+        if (-not $backToMain) {
+            Start-Sleep 2
+            Clear-Host
         }
-        "4" {
-            Write-Host "Available services: ollama, db, web, api, scraper, scheduler" -ForegroundColor Cyan
-            $svc = Read-Host "Enter service name"
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart $svc
-        }
-        "5" {
-            Write-Host "Rebuilding containers..." -ForegroundColor Yellow
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") build
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
-            Write-Host "Done!" -ForegroundColor Green
-        }
-        "6" {
-            Write-Host "Stopping all containers..." -ForegroundColor Red
-            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
-            Write-Host "All containers stopped." -ForegroundColor Yellow
-        }
-    }
-    
-    if ($choice -ne "B") {
-        Start-Sleep 2
-        Clear-Host
     }
 }
 
