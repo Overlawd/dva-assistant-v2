@@ -356,41 +356,14 @@ LLM_CTX: 8192                   # Context window tokens
 
 ## System Load Monitoring
 
+The System Status panel shows real-time system metrics in the sidebar. It updates automatically when you interact with the page (send messages, click buttons, expand sections).
+
 ```mermaid
 flowchart TD
-    START([UI refresh<br/>every 2s]) --> DETECT_HW[Detect Hardware<br/>GPU/VRAM]
+    START([User Interaction<br/>or Page Load]) --> FETCH_API[Fetch from<br/>dva-api:8502]
     
-    DETECT_HW --> GPU_PRESENT{Has GPU?}
-    
-    GPU_PRESENT -->|Yes| GET_GPU[Get GPU util<br/>VRAM util<br/>Temperature]
-    GPU_PRESENT -->|No| GET_CPU[Get CPU util<br/>Memory<br/>Disk]
-    
-    GET_GPU --> CHECK_VRAM{VRAM ≥85%?}
-    GET_CPU --> WEIGHT_CPU[Set CPU weights<br/>50% CPU, 25% Mem<br/>20% Disk, 5% Net]
-    
-    CHECK_VRAM -->|Yes| WEIGHT_HIGH[High VRAM weights<br/>30% GPU, 25% VRAM<br/>15% CPU, 15% Disk]
-    CHECK_VRAM -->|No| WEIGHT_NORMAL[Normal weights<br/>40% GPU, 15% VRAM<br/>20% CPU, 10% Disk]
-    
-    WEIGHT_CPU --> CALC_LOAD
-    WEIGHT_HIGH --> CALC_LOAD
-    WEIGHT_NORMAL --> CALC_LOAD
-    
-    CALC_LOAD[Calculate<br/>Weighted Load] --> OLLAMA_CHECK{Ollama<br/>Active?}
-    
-    OLLAMA_CHECK -->|Yes| BOOST_GPU[Boost GPU<br/>weight 20%]
-    OLLAMA_CHECK -->|No| CHECK_THRESH
-    
-    BOOST_GPU --> CHECK_THRESH{Check<br/>Thresholds}
-    
-    CHECK_THRESH -->|2+ ≥90%| CAP_100[Cap at 100%]
-    CHECK_THRESH -->|1 ≥92%| BOOST_LOAD[Boost 10%]
-    CHECK_THRESH -->|Normal| RETURN_LOAD
-    
-    CAP_100 --> RETURN_LOAD([Return<br/>System Load])
-    BOOST_LOAD --> RETURN_LOAD
-    
-    RETURN_LOAD --> COLOR[Apply Color<br/>Green/Yellow<br/>Orange/Red]
-    COLOR --> RENDER([Render bar chart<br/>in UI])
+    FETCH_API --> PARSE[Parse JSON<br/>GPU/VRAM/CPU/Mem]
+    PARSE --> RENDER[Render styled<br/>metrics in sidebar]
 ```
 
 ### Weight Schemas
@@ -473,6 +446,7 @@ flowchart TD
 | ------ | --------- |
 | `main.py` | Core RAG pipeline, query processing, LLM invocation |
 | `ui.py` | Streamlit UI, user interaction handling |
+| `api.py` | FastAPI endpoint for System Status polling (port 8502) |
 | `scraper.py` | Web crawling, content extraction, embedding generation |
 | `model_manager.py` | Hardware detection, model recommendations |
 | `sql_generator.py` | Natural language to SQL conversion |

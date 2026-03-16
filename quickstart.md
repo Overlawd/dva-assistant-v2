@@ -51,22 +51,14 @@ Wait ~30 seconds for containers to start, then check status:
 docker ps
 ```
 
-You should see 4-5 containers running:
+You should see 5-6 containers running:
 
 - dva-ollama
 - dva-db  
 - dva-web
+- dva-api (for System Status polling)
 - dva-scraper
 - dva-scheduler (optional - for scheduled scraping)
-
-### Install UI Dependencies
-
-The first time you run the app, install the streamlit-autorefresh package:
-
-```powershell
-docker exec dva-web pip install streamlit-autorefresh>=1.0.0
-docker restart dva-web
-```
 
 ---
 
@@ -89,11 +81,10 @@ docker exec dva-ollama ollama pull mxbai-embed-large
 Open your browser to: **http://localhost:8501**
 
 In the sidebar, you should see:
-- **GPU:** NVIDIA GeForce GTX 1060 6GB (or your GPU model)
-- **VRAM:** 6 GB (or your GPU memory)
+- **System Load** - Real-time system metrics (GPU, VRAM, Temp, Net)
 - **Common Questions** - Click to quick-start common veteran queries
 
-If it shows "CPU only", see the Troubleshooting section below.
+The System Status updates automatically when you interact with the page.
 
 ### Session Memory
 

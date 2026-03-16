@@ -34,6 +34,9 @@ if 'session_history' not in st.session_state:
 if 'pending_question' not in st.session_state:
     st.session_state.pending_question = None
 
+if 'generating' not in st.session_state:
+    st.session_state.generating = False
+
 
 load_dotenv()
 
@@ -198,8 +201,7 @@ def render_system_status():
     
     st.html(status_html)
     
-    if st.button("🔄 Refresh", key="refresh_status"):
-        st.rerun()
+    st.caption("💡 Stats update automatically when you interact with the page")
 
 
 def render_sidebar():
@@ -226,13 +228,6 @@ def render_sidebar():
         
         st.markdown("---")
         
-        models_info = main_module.get_available_models()
-        if models_info.get("status") == "connected":
-            installed = models_info.get("installed", [])
-            with st.expander(f"🔌 Models ({len(installed)} installed)"):
-                for m in installed:
-                    st.caption(f"• {m}")
-        
         common_questions = main_module.get_common_questions()
         if common_questions:
             with st.expander("❓ Common Questions"):
@@ -245,6 +240,13 @@ def render_sidebar():
                             st.session_state.pending_question = q
                             st.rerun()
                     st.markdown("---")
+        
+        models_info = main_module.get_available_models()
+        if models_info.get("status") == "connected":
+            installed = models_info.get("installed", [])
+            with st.expander(f"🔌 Models ({len(installed)} installed)"):
+                for m in installed:
+                    st.caption(f"• {m}")
         
         st.markdown("---")
         
@@ -299,6 +301,7 @@ def process_question(prompt: str):
         "role": "user",
         "content": prompt,
     })
+    st.session_state.generating = True
     
     context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
     
@@ -322,6 +325,7 @@ def process_question(prompt: str):
                     "sources": [],
                     "metadata": {"is_statement": True},
                 })
+                st.session_state.generating = False
                 st.rerun()
             
             answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
@@ -330,6 +334,8 @@ def process_question(prompt: str):
                 "推理时间": f"{latency_ms}ms",
                 "used_sql": prepared.get("used_sql", False),
             }
+        
+        st.session_state.generating = False
         
         st.markdown(answer)
         
