@@ -369,8 +369,8 @@ def process_question(prompt: str):
         if metadata:
             if metadata.get("model_used"):
                 st.write(f"**Model:** {metadata['model_used']}")
-            if metadata.get("推理时间"):
-                st.write(f"**推理时间:** {metadata['推理时间']}")
+            if metadata.get("latency"):
+                st.write(f"**Latency:** {metadata['latency']}")
             if metadata.get("used_sql"):
                 st.write("**SQL Used:** Yes")
         
