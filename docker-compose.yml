@@ -44,6 +44,7 @@ services:
     container_name: dva-api
     ports:
       - "8502:8502"
+      - "8503:8503"
     environment:
       DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
       OLLAMA_BASE_URL: http://ollama:11434
@@ -67,7 +68,7 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    command: python api.py
+    command: bash /app/start.sh
 
   web:
     build:

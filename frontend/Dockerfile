@@ -6,8 +6,8 @@ RUN rm /etc/nginx/conf.d/default.conf
 # Copy custom config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy static HTML
-COPY public/index.html /usr/share/nginx/html/index.html
+# Copy all static files
+COPY public/ /usr/share/nginx/html/
 
 EXPOSE 80
 

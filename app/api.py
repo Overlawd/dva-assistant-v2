@@ -4,12 +4,14 @@ Enhanced for React frontend integration
 """
 import os
 import time
+import asyncio
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 import psutil
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
@@ -98,6 +100,7 @@ class ChatResponse(BaseModel):
     latency_ms: Optional[int] = None
     used_sql: Optional[bool] = False
     metadata: Optional[Dict[str, Any]] = {}
+    system_status: Optional[Dict[str, Any]] = None
 
 
 app = FastAPI(title="DVA Assistant API")
@@ -115,6 +118,21 @@ app.add_middleware(
 async def system_status():
     """Return system status as JSON."""
     return get_system_load()
+
+
+@app.get("/api/system-status-stream")
+async def system_status_stream():
+    """Server-Sent Events stream for real-time system status."""
+    from fastapi.responses import StreamingResponse
+    import json
+    
+    async def event_generator():
+        while True:
+            data = get_system_load()
+            yield f"data: {json.dumps(data)}\n\n"
+            await asyncio.sleep(2)
+    
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
 @app.get("/api/common-questions")
@@ -141,6 +159,9 @@ async def knowledge_stats():
 async def chat(request: ChatRequest):
     """Process a chat message and return the response."""
     try:
+        # Get current system status to return with response
+        current_status = get_system_load()
+        
         prepared = main_module.prepare_rag_context(
             request.message,
             user_id=request.user_id or "anonymous",
@@ -152,6 +173,7 @@ async def chat(request: ChatRequest):
             return ChatResponse(
                 is_statement=True,
                 acknowledgement=prepared.get("acknowledgement", "Acknowledged."),
+                system_status=current_status,
             )
         
         answer, sources, latency_ms, model = main_module.generate_answer(prepared, request.message)
@@ -167,7 +189,8 @@ async def chat(request: ChatRequest):
                 "model_used": model,
                 "latency_ms": latency_ms,
                 "used_sql": prepared.get("used_sql", False),
-            }
+            },
+            system_status=current_status,
         )
         
     except Exception as e:

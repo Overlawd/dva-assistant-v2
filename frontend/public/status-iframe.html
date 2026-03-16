@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Status Poller</title>
+</head>
+<body>
+    <script>
+    var parentOrigin = '*';
+    
+    function poll() {
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/api/system-status?t=' + Date.now(), false);  // synchronous for testing
+            xhr.setRequestHeader('Cache-Control', 'no-cache');
+            xhr.send(null);
+            if (xhr.status === 200) {
+                var data = JSON.parse(xhr.responseText);
+                parent.postMessage({ type: 'systemStatus', data: data }, '*');
+            }
+        } catch(e) {}
+        
+        setTimeout(poll, 1500);
+    }
+    
+    poll();
+    </script>
+</body>
+</html>

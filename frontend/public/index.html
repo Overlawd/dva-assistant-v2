@@ -6,15 +6,7 @@
     <title>DVA Assistant</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        :root {
-            --primary: #1e40af;
-            --primary-light: #3b82f6;
-            --bg: #f8fafc;
-            --white: #ffffff;
-            --border: #e2e8f0;
-            --text: #1e293b;
-            --text-muted: #64748b;
-        }
+        :root { --primary: #1e40af; --primary-light: #3b82f6; --bg: #f8fafc; --white: #ffffff; --border: #e2e8f0; --text: #1e293b; --text-muted: #64748b; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
         .header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; padding: 1rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
@@ -38,7 +30,6 @@
         .sources-list a { text-decoration: none; }
         .sources-list a:hover { text-decoration: underline; }
         .message-meta { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.7rem; color: #94a3b8; display: flex; gap: 1rem; }
-        .loading-indicator { color: var(--text-muted); font-style: italic; }
         .chat-input { display: flex; gap: 0.5rem; padding: 1rem; background: var(--white); border-top: 1px solid var(--border); }
         .chat-input input { flex: 1; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; }
         .chat-input input:focus { border-color: var(--primary-light); }
@@ -91,7 +82,10 @@
             </form>
         </div>
         <aside class="sidebar">
-            <div class="system-status" id="systemStatus"><h3>📊 System Status</h3><p class="loading">Loading...</p></div>
+            <div class="system-status" id="systemStatus">
+                <h3>📊 System Status</h3>
+                <div id="statusContent"><p class="loading">Loading...</p></div>
+            </div>
             <div class="sidebar-section">
                 <button class="section-header" onclick="toggleSection('questions')"><span>❓ Common Questions</span><span class="arrow" id="arrow-questions">▶</span></button>
                 <div class="section-content" id="section-questions" style="display:none">
@@ -112,100 +106,163 @@
             </div>
         </aside>
     </div>
+
     <script>
-        const API = 'http://localhost:8502';
-        let messages = [], sessionHistory = [], recentQuestions = [], commonQuestions = [];
-        let statusData = null, statusReqInFlight = false;
-        
-        function getLoadColor(l) { return l <= 50 ? '#22c55e' : l <= 70 ? '#eab308' : l <= 90 ? '#f97316' : '#ef4444'; }
-        
-        function renderSystemStatus(s) {
-            if (!s) return;
-            const lv = s.load || 0, lc = getLoadColor(lv), ws = (s.warnings || []).map(w => `<div class="warning-banner"><span>⚠️ ${w}</span><button onclick="this.parentElement.remove()">✕</button></div>`).join('');
-            let m = s.has_gpu 
-                ? `<div class="metrics-grid"><div class="metric"><span class="metric-label">GPU</span><span class="metric-value">${(s.gpu||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">VRAM</span><span class="metric-value">${(s.vram||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">Temp</span><span class="metric-value">${s.gpu_temp||0}°C</span></div><div class="metric"><span class="metric-label">Free</span><span class="metric-value">${(s.vram_free_gb||0).toFixed(1)}GB</span></div></div>`
-                : `<div class="metrics-grid"><div class="metric"><span class="metric-label">CPU</span><span class="metric-value">${(s.cpu||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">Memory</span><span class="metric-value">${(s.memory||0).toFixed(0)}%</span></div></div>`;
-            document.getElementById('systemStatus').innerHTML = `<h3>📊 System Status</h3><div class="load-bar-container"><div class="load-bar-label"><span>Load</span><span>${lv.toFixed(0)}%</span></div><div class="load-bar"><div class="load-bar-fill" style="width:${lv}%;background:${lc}"></div></div></div>${m}${ws}<p class="update-note">🔄 Updates: ${new Date().toLocaleTimeString()}</p>`;
+    var API = '/api';
+    var STATUS_API = 'http://localhost:8503/api';
+    var worker = null;
+    var lastStatus = null;
+    var workerPollCount = 0;
+    
+    // Initialize Web Worker for background status polling
+    function initWorker() {
+        try {
+            worker = new Worker('/status-worker.js');
+            worker.onmessage = function(e) {
+                workerPollCount++;
+                if (e.data && e.data.type === 'status') {
+                    var data = e.data.data;
+                    // Always render - force update to see if it works
+                    lastStatus = data;
+                    renderStatus(data);
+                }
+            };
+            worker.onerror = function(err) {
+                console.log('Worker error, using fallback');
+                worker = null;
+                startFallbackPolling();
+            };
+        } catch(e) {
+            console.log('Worker init failed:', e);
+            startFallbackPolling();
         }
-        
-        function pollStatus() {
-            if (statusReqInFlight) return;
-            statusReqInFlight = true;
-            fetch(API + '/api/system-status', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { if (d) { statusData = d; renderSystemStatus(d); }}).finally(() => { statusReqInFlight = false; });
+    }
+    
+    // Fallback: direct polling with setInterval
+    function startFallbackPolling() {
+        function poll() {
+            fetch(STATUS_API + '/system-status', { cache: 'no-store' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (JSON.stringify(data) !== JSON.stringify(lastStatus)) {
+                    lastStatus = data;
+                    renderStatus(data);
+                }
+            })
+            .catch(function() {});
+            setTimeout(poll, 2000);
         }
+        poll();
+    }
+    
+    function renderStatus(s) {
+        if (!s) return;
+        var content = document.getElementById('statusContent');
+        if (!content) return;
         
-        async function fetchCommonQuestions() {
-            try {
-                const r = await fetch(API + '/api/common-questions');
-                const d = await r.json();
-                commonQuestions = [];
-                Object.values(d).forEach(a => commonQuestions.push(...a.slice(0, 3)));
-                document.getElementById('faqSelect').innerHTML = '<option value="">Select a question...</option>' + commonQuestions.map(q => `<option value="${q}">${q}</option>`).join('');
-            } catch (e) { console.error(e); }
-        }
+        var lv = s.load || 0;
+        var lc = lv <= 50 ? '#22c55e' : lv <= 70 ? '#eab308' : lv <= 90 ? '#f97316' : '#ef4444';
+        var ws = '';
+        if (s.warnings) ws = s.warnings.map(function(w) { return '<div class="warning-banner"><span>⚠️ ' + w + '</span><button onclick="this.parentElement.remove()">✕</button></div>'; }).join('');
+        var m = s.has_gpu 
+            ? '<div class="metrics-grid"><div class="metric"><span class="metric-label">GPU</span><span class="metric-value">' + (s.gpu||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">VRAM</span><span class="metric-value">' + (s.vram||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">Temp</span><span class="metric-value">' + (s.gpu_temp||0) + '°C</span></div><div class="metric"><span class="metric-label">Free</span><span class="metric-value">' + (s.vram_free_gb||0).toFixed(1) + 'GB</span></div></div>'
+            : '<div class="metrics-grid"><div class="metric"><span class="metric-label">CPU</span><span class="metric-value">' + (s.cpu||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">Memory</span><span class="metric-value">' + (s.memory||0).toFixed(0) + '%</span></div></div>';
+        content.innerHTML = '<div class="load-bar-container"><div class="load-bar-label"><span>Load</span><span>' + lv.toFixed(0) + '%</span></div><div class="load-bar"><div class="load-bar-fill" style="width:' + lv + '%;background:' + lc + '"></div></div></div>' + m + ws + '<p class="update-note">🔄 ' + new Date().toLocaleTimeString() + ' (polls:' + workerPollCount + ')</p>';
+    }
+    
+    // Initialize worker-based polling
+    initWorker();
+    </script>
+    
+    <script>
+    var messages = [], sessionHistory = [], recentQuestions = [], commonQuestions = [];
+    
+    function toggleSection(id) {
+        var c = document.getElementById('section-' + id);
+        var a = document.getElementById('arrow-' + id);
+        var h = c.previousElementSibling;
+        if (c.style.display === 'none') { c.style.display = 'block'; a.textContent = '▼'; if (h) h.classList.add('expanded'); }
+        else { c.style.display = 'none'; a.textContent = '▶'; if (h) h.classList.remove('expanded'); }
+    }
+    window.toggleSection = toggleSection;
+    
+    function selectQuestion(q) { if (q) { document.getElementById('chatInput').value = q; document.getElementById('faqSelect').value = ''; } }
+    window.selectQuestion = selectQuestion;
+    
+    function updateStatsUI() { document.getElementById('recentCount').textContent = recentQuestions.length; document.getElementById('contextCount').textContent = sessionHistory.length; }
+    
+    function clearSession() { messages = []; sessionHistory = []; recentQuestions = []; renderMessages(); updateStatsUI(); }
+    window.clearSession = clearSession;
+    
+    function renderMessages() {
+        var c = document.getElementById('chatMessages');
+        if (!messages.length) { c.innerHTML = '<div class="chat-empty"><p>👋 Welcome to DVA Assistant!</p><p>Ask me anything about veteran entitlements.</p></div>'; return; }
+        c.innerHTML = messages.map(function(m) {
+            var src = '', meta = '';
+            if (m.role === 'assistant' && m.sources && m.sources.length) src = '<div class="message-sources"><details><summary>📋 Sources (' + m.sources.length + ')</summary><div class="sources-list">' + m.sources.map(function(s,i) { return '<a href="' + s.url + '" target="_blank">[' + (i+1) + '] ' + s.title + '</a>'; }).join('<br>') + '</div></details></div>';
+            if (m.role === 'assistant' && m.metadata) { var p = []; if (m.metadata.model_used) p.push('Model: ' + m.metadata.model_used); if (m.metadata.latency) p.push('Latency: ' + m.metadata.latency); if (p.length) meta = '<div class="message-meta">' + p.join(' | ') + '</div>'; }
+            return '<div class="message message-' + m.role + '"><div class="message-content"><p>' + m.content + '</p>' + src + meta + '</div></div>';
+        }).join('');
+        c.scrollTop = c.scrollHeight;
+    }
+    
+    function sendMessage(text) {
+        var i = document.getElementById('chatInput'), b = document.getElementById('sendBtn');
+        if (!text.trim()) return;
+        messages.push({ role: 'user', content: text });
+        recentQuestions.push(text.slice(-100));
+        renderMessages();
+        i.value = ''; i.disabled = b.disabled = true;
+        messages.push({ role: 'assistant', content: '🤔 Thinking...', sources: [], metadata: {} });
+        renderMessages();
         
-        async function fetchKnowledgeStats() {
-            try {
-                const r = await fetch(API + '/api/knowledge-stats');
-                const d = await r.json();
-                const c = {'DVA': '#1e40af', 'CLIK': '#7c3aed', 'Legislation': '#059669', 'default': '#666'};
-                document.getElementById('knowledgeStats').innerHTML = Object.entries(d).length ? Object.entries(d).map(([s,n]) => `<div class="stat-item"><span style="color:${c[s]||c.default}">●</span><span>${s}:</span><span>${n}</span></div>`).join('') : '<p class="loading">No data</p>';
-            } catch (e) { document.getElementById('knowledgeStats').innerHTML = '<p class="loading">Failed</p>'; }
-        }
-        
-        function toggleSection(id) {
-            const c = document.getElementById('section-' + id), a = document.getElementById('arrow-' + id), h = c.previousElementSibling;
-            c.style.display = c.style.display === 'none' ? 'block' : 'none';
-            a.textContent = c.style.display === 'none' ? '▶' : '▼';
-            if (h) h.classList.toggle('expanded', c.style.display !== 'none');
-        }
-        
-        function selectQuestion(q) { if (q) { document.getElementById('chatInput').value = q; document.getElementById('faqSelect').value = ''; } }
-        function updateStats() { document.getElementById('recentCount').textContent = recentQuestions.length; document.getElementById('contextCount').textContent = sessionHistory.length; }
-        function clearSession() { messages = []; sessionHistory = []; recentQuestions = []; renderMessages(); updateStats(); }
-        
-        function renderMessages() {
-            const c = document.getElementById('chatMessages');
-            if (!messages.length) { c.innerHTML = '<div class="chat-empty"><p>👋 Welcome to DVA Assistant!</p><p>Ask me anything about veteran entitlements.</p></div>'; return; }
-            c.innerHTML = messages.map(m => {
-                let src = '', meta = '';
-                if (m.role === 'assistant' && m.sources?.length) src = `<div class="message-sources"><details><summary>📋 Sources (${m.sources.length})</summary><div class="sources-list">${m.sources.map((s,i) => `<a href="${s.url}" target="_blank">[${i+1}] ${s.title}</a>`).join('<br>')}</div></details></div>`;
-                if (m.role === 'assistant' && m.metadata) { const p = []; if (m.metadata.model_used) p.push(`Model: ${m.metadata.model_used}`); if (m.metadata.latency) p.push(`Latency: ${m.metadata.latency}`); if (p.length) meta = `<div class="message-meta">${p.join(' | ')}</div>`; }
-                return `<div class="message message-${m.role}"><div class="message-content"><p>${m.content}</p>${src}${meta}</div></div>`;
-            }).join('');
-            c.scrollTop = c.scrollHeight;
-        }
-        
-        async function sendMessage(text) {
-            const i = document.getElementById('chatInput'), b = document.getElementById('sendBtn');
-            if (!text.trim()) return;
-            messages.push({ role: 'user', content: text });
-            recentQuestions.push(text.slice(-100));
-            renderMessages();
-            i.value = ''; i.disabled = b.disabled = true;
-            messages.push({ role: 'assistant', content: '🤔 Thinking...', sources: [], metadata: {} });
-            renderMessages();
-            pollStatus();
-            try {
-                const r = await fetch(API + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, session_history: sessionHistory, recent_questions: recentQuestions }) });
-                if (!r.ok) throw new Error('API ' + r.status);
-                const d = await r.json();
-                messages.pop();
-                if (d.is_statement) { sessionHistory.push({ content: text, input_type: 'statement' }); messages.push({ role: 'assistant', content: d.acknowledgement, sources: [], metadata: {} }); }
-                else messages.push({ role: 'assistant', content: d.answer, sources: d.sources||[], metadata: d.metadata||{} });
-            } catch (e) { messages.pop(); messages.push({ role: 'assistant', content: 'Error: ' + e.message, sources: [], metadata: {} }); }
+        // Use non-blocking fetch to allow status polling to continue
+        fetch(API + '/chat', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ message: text, session_history: sessionHistory, recent_questions: recentQuestions }) 
+        })
+        .then(function(r) { 
+            if (!r.ok) throw new Error('API ' + r.status);
+            return r.json(); 
+        })
+        .then(function(d) {
+            messages.pop();
+            // Update status from chat response (captures load during LLM generation)
+            if (d.system_status) {
+                lastStatus = d.system_status;
+                renderStatus(d.system_status);
+            }
+            if (d.is_statement) { 
+                sessionHistory.push({ content: text, input_type: 'statement' }); 
+                messages.push({ role: 'assistant', content: d.acknowledgement, sources: [], metadata: {} }); 
+            }
+            else messages.push({ role: 'assistant', content: d.answer, sources: d.sources||[], metadata: d.metadata||{} });
             i.disabled = b.disabled = false;
-            updateStats(); renderMessages(); pollStatus(); i.focus();
-        }
-        
-        document.getElementById('chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage(document.getElementById('chatInput').value); });
-        
-        // Start polling
-        pollStatus();
-        fetchCommonQuestions();
-        fetchKnowledgeStats();
-        updateStats();
-        setInterval(pollStatus, 3000);
+            updateStatsUI(); renderMessages(); i.focus();
+        })
+        .catch(function(e) {
+            messages.pop();
+            messages.push({ role: 'assistant', content: 'Error: ' + e.message, sources: [], metadata: {} });
+            i.disabled = b.disabled = false;
+            updateStatsUI(); renderMessages(); i.focus();
+        });
+    }
+    
+    document.getElementById('chatForm').addEventListener('submit', function(e) { e.preventDefault(); sendMessage(document.getElementById('chatInput').value); });
+    
+    fetch(API + '/common-questions').then(function(r) { return r.json(); }).then(function(d) {
+        commonQuestions = [];
+        Object.values(d).forEach(function(arr) { commonQuestions.push.apply(commonQuestions, arr.slice(0, 3)); });
+        document.getElementById('faqSelect').innerHTML = '<option value="">Select a question...</option>' + commonQuestions.map(function(q) { return '<option value="' + q + '">' + q + '</option>'; }).join('');
+    }).catch(function() {});
+    
+    fetch(API + '/knowledge-stats').then(function(r) { return r.json(); }).then(function(d) {
+        var c = {'DVA': '#1e40af', 'CLIK': '#7c3aed', 'Legislation': '#059669', 'default': '#666'};
+        document.getElementById('knowledgeStats').innerHTML = Object.keys(d).length ? Object.entries(d).map(function(x) { return '<div class="stat-item"><span style="color:' + (c[x[0]]||c['default']) + '">●</span><span>' + x[0] + ':</span><span>' + x[1] + '</span></div>'; }).join('') : '<p class="loading">No data</p>';
+    }).catch(function() { document.getElementById('knowledgeStats').innerHTML = '<p class="loading">Failed</p>'; });
+    
+    updateStatsUI();
     </script>
 </body>
 </html>
