@@ -52,6 +52,8 @@ What is dva-scheduler and why is not NOT running?  When does it run and when sho
 
 User add seed to scraper via gui has gone missing.
 
+## CHECK IN SEED LIST
+
 Add the following seeds iwth normal duplication, trust and ranking logic etc:
 
 <https://soldieron.org.au/>

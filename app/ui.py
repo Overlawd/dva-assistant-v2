@@ -1,7 +1,7 @@
 """
 ui.py — Streamlit UI for DVA Assistant
 
-Simplified version - focused on chat functionality.
+Sidebar with tabs: Chat, System Status, Common Questions, Settings
 """
 
 import os
@@ -11,6 +11,7 @@ from typing import List, Optional
 
 import streamlit as st
 import psutil
+import requests
 from dotenv import load_dotenv
 
 import main as main_module
@@ -55,8 +56,105 @@ COLORS = {
 
 def get_system_load():
     """Get current system load metrics."""
-    hw_info = main_module.get_hardware_info()
-    return hw_info
+    try:
+        resp = requests.get("http://dva-api:8502/api/system-status", timeout=1)
+        return resp.json()
+    except:
+        hw_info = main_module.get_hardware_info()
+        return hw_info
+
+
+def render_system_status():
+    """Render system status in a tab."""
+    sys_load = get_system_load()
+    load_val = sys_load.get("load", 0)
+    has_gpu = sys_load.get("has_gpu", False)
+    
+    if load_val <= 50:
+        load_color = "#22c55e"
+    elif load_val <= 70:
+        load_color = "#eab308"
+    elif load_val <= 90:
+        load_color = "#f97316"
+    else:
+        load_color = "#ef4444"
+    
+    st.markdown("### System Load")
+    st.progress(load_val / 100, text=f"{load_val:.0f}%")
+    
+    if has_gpu:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("GPU", f"{sys_load.get('gpu', 0):.0f}%")
+        col2.metric("VRAM", f"{sys_load.get('vram', 0):.0f}%")
+        col3.metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
+        col4.metric("Net", f"{sys_load.get('network', 0):.0f}%")
+        st.caption(f"VRAM: {sys_load.get('vram_free_gb', 0):.1f}GB free")
+    else:
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("CPU", f"{sys_load.get('cpu', 0):.0f}%")
+        col2.metric("Mem", f"{sys_load.get('memory', 0):.0f}%")
+        col3.metric("Disk", f"{sys_load.get('disk', 0):.0f}%")
+        col4.metric("Net", f"{sys_load.get('network', 0):.1f}%")
+    
+    warnings = sys_load.get("warnings", [])
+    if warnings:
+        for w in warnings:
+            st.warning(w)
+    
+    st.caption("💡 Stats update when you interact with the page")
+
+
+def render_common_questions():
+    """Render common questions in a tab."""
+    common_questions = main_module.get_common_questions()
+    if not common_questions:
+        st.write("No common questions available")
+        return
+    
+    all_questions = []
+    for cat, questions in common_questions.items():
+        for q in questions[:3]:
+            all_questions.append(q)
+    
+    options = ["Select a question..."] + all_questions
+    selected = st.selectbox("❓ Common Questions", options, key="faq_select")
+    
+    if selected and selected != "Select a question...":
+        st.session_state.pending_question = selected
+        st.rerun()
+
+
+def render_settings():
+    """Render settings and session info in a tab."""
+    st.markdown("### Session Info")
+    
+    # Recent questions
+    recent = st.session_state.get('recent_questions', [])
+    st.write(f"**Recent Questions:** {len(recent)}")
+    if recent:
+        with st.expander(f"View recent ({len(recent)})"):
+            for q in recent[-10:]:
+                st.caption(f"• {q}")
+    
+    # Session history
+    history = st.session_state.get('session_history', [])
+    st.write(f"**Session Context:** {len(history)} statements")
+    
+    if st.button("Clear Session"):
+        st.session_state.session_history = []
+        st.session_state.recent_questions = []
+        st.session_state.messages = []
+        st.session_state.last_response = None
+        st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### Knowledge Base")
+    stats = main_module.get_page_stats()
+    for source, count in sorted(stats.items()):
+        color = COLORS.get(source, "#666")
+        st.markdown(f'<span style="color:{color}">●</span> **{source}**: {count}', unsafe_allow_html=True)
+    
+    st.caption(f"Last updated: {main_module.get_last_updated()}")
 
 
 def render_message_item(msg: dict):
@@ -212,20 +310,41 @@ def main():
     st.title("🎖️ DVA Assistant")
     st.caption("Ask questions about Australian veteran entitlements and benefits")
     
-    # Handle pending questions (from dropdown if re-added later)
-    if st.session_state.get('pending_question'):
-        question = st.session_state.pending_question
-        st.session_state.pending_question = None
-        process_question(question)
-        return
+    # Create tabs
+    tab_chat, tab_status, tab_faq, tab_settings = st.tabs([
+        "💬 Chat", 
+        "📊 System Status", 
+        "❓ Common Questions",
+        "⚙️ Settings"
+    ])
     
-    # Render all messages
-    for msg in st.session_state.messages:
-        render_message_item(msg)
+    # === TAB 1: CHAT ===
+    with tab_chat:
+        # Handle pending questions
+        if st.session_state.get('pending_question'):
+            question = st.session_state.pending_question
+            st.session_state.pending_question = None
+            process_question(question)
+        
+        # Render messages
+        for msg in st.session_state.messages:
+            render_message_item(msg)
+        
+        # Chat input
+        if prompt := st.chat_input("Ask about DVA entitlements..."):
+            process_question(prompt)
     
-    # Chat input
-    if prompt := st.chat_input("Ask about DVA entitlements..."):
-        process_question(prompt)
+    # === TAB 2: SYSTEM STATUS ===
+    with tab_status:
+        render_system_status()
+    
+    # === TAB 3: COMMON QUESTIONS ===
+    with tab_faq:
+        render_common_questions()
+    
+    # === TAB 4: SETTINGS ===
+    with tab_settings:
+        render_settings()
 
 
 if __name__ == "__main__":
