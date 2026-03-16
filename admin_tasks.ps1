@@ -76,10 +76,17 @@ function Show-MainMenu {
 
 function Start-Restart-Application {
     $backToMain = $false
+    $returnToMain = $false
     
     while (-not $backToMain) {
         $running = Test-ContainersRunning
         $isRunning = $running.Count -ge 4
+        
+        # If we just started the app (was not running), return to main menu
+        if ($returnToMain) {
+            $backToMain = $true
+            continue
+        }
         
         Write-Header "Application Control"
         
@@ -151,6 +158,8 @@ function Start-Restart-Application {
                     Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
                     Start-Sleep 10
                     docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+                    # Return to main menu after starting
+                    $returnToMain = $true
                 }
                 "B" { $backToMain = $true }
                 "" { $backToMain = $true }

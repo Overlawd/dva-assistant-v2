@@ -240,10 +240,29 @@ def render_sidebar():
                 for q in questions[:3]:
                     all_questions.append(q)
             
-            faq_key = "faq_select_" + str(len(all_questions))
-            selected = st.selectbox("❓ Common Questions", ["Select a question..."] + all_questions, key=faq_key)
+            # Check if we need to reset the dropdown (after answer is shown)
+            if st.session_state.get('faq_should_reset', False):
+                st.session_state.faq_dropdown_value = "Select a question..."
+                st.session_state.faq_should_reset = False
+            
+            current_val = st.session_state.get('faq_dropdown_value', "Select a question...")
+            
+            # Find index - default to 0 if not in list
+            options = ["Select a question..."] + all_questions
+            if current_val in all_questions:
+                idx = all_questions.index(current_val) + 1
+            else:
+                idx = 0
+            
+            selected = st.selectbox("❓ Common Questions", options, key="faq_dropdown", index=idx)
+            
+            # Track selection for next render
+            st.session_state.faq_dropdown_value = selected
+            
+            # Trigger processing if new selection (not same as last processed)
             if selected and selected != "Select a question...":
-                st.session_state.pending_question = selected
+                if selected != st.session_state.get('last_processed_question'):
+                    st.session_state.pending_question = selected
         
         models_info = main_module.get_available_models()
         if models_info.get("status") == "connected":
@@ -281,8 +300,8 @@ def render_message_item(msg: dict):
             if msg["metadata"]:
                 if msg["metadata"].get("model_used"):
                     st.write(f"**Model:** {msg['metadata']['model_used']}")
-                if msg["metadata"].get("推理时间"):
-                    st.write(f"**推理时间:** {msg['metadata']['推理时间']}")
+                if msg["metadata"].get("latency"):
+                    st.write(f"**Latency:** {msg['metadata']['latency']}")
                 if msg["metadata"].get("used_sql"):
                     st.write("**SQL Used:** Yes")
 
@@ -335,7 +354,7 @@ def process_question(prompt: str):
             answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
             metadata = {
                 "model_used": model,
-                "推理时间": f"{latency_ms}ms",
+                "latency": f"{latency_ms}ms",
                 "used_sql": prepared.get("used_sql", False),
             }
         
@@ -361,6 +380,9 @@ def process_question(prompt: str):
             "sources": sources,
             "metadata": metadata,
         })
+        
+        # Reset dropdown after answer is displayed
+        st.session_state.faq_should_reset = True
 
 
 def check_vram_warnings():
@@ -417,6 +439,8 @@ def main():
         question = st.session_state.pending_question
         st.session_state.last_processed_question = question
         st.session_state.pending_question = None
+        # Mark that dropdown should reset on next render
+        st.session_state.last_question_processed = True
         process_question(question)
     
     for msg in st.session_state.messages:
