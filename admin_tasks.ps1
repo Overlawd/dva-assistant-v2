@@ -45,7 +45,7 @@ function Get-ContainerName {
 }
 
 function Test-ContainersRunning {
-    $services = @("ollama", "db", "web", "scraper", "scheduler")
+    $services = @("ollama", "db", "web", "api", "scraper", "scheduler")
     $running = @()
     foreach ($svc in $services) {
         $name = Get-ContainerName -Service $svc
@@ -102,7 +102,7 @@ function Restart-Application {
             Write-Host "Done!" -ForegroundColor Green
         }
         "3" {
-            Write-Host "Available services: ollama, db, web, scraper, scheduler" -ForegroundColor Cyan
+            Write-Host "Available services: ollama, db, web, api, scraper, scheduler" -ForegroundColor Cyan
             $svc = Read-Host "Enter service name"
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart $svc
         }
@@ -347,7 +347,7 @@ function Show-Diagnostic {
     while (-not $backToMain) {
         Write-Header "Diagnostic"
         
-        $services = @("ollama", "db", "web", "scraper", "scheduler")
+        $services = @("ollama", "db", "web", "api", "scraper", "scheduler")
         $allHealthy = $true
         
         Write-Host "Container Status:" -ForegroundColor Cyan
@@ -411,9 +411,10 @@ function Show-Diagnostic {
         
         if ($diagChoice -eq "V" -or $diagChoice -eq "v") {
             Write-Host "[1] Web container" -ForegroundColor Yellow
-            Write-Host "[2] Scraper container" -ForegroundColor Yellow
-            Write-Host "[3] Database" -ForegroundColor Yellow
-            Write-Host "[4] Ollama" -ForegroundColor Yellow
+            Write-Host "[2] API container" -ForegroundColor Yellow
+            Write-Host "[3] Scraper container" -ForegroundColor Yellow
+            Write-Host "[4] Database" -ForegroundColor Yellow
+            Write-Host "[5] Ollama" -ForegroundColor Yellow
             Write-Host "[B] Back" -ForegroundColor Gray
             Write-Host ""
             
@@ -426,9 +427,10 @@ function Show-Diagnostic {
             
             $container = switch ($logChoice) {
                 "1" { Get-ContainerName -Service "web" }
-                "2" { Get-ContainerName -Service "scraper" }
-                "3" { Get-ContainerName -Service "db" }
-                "4" { Get-ContainerName -Service "ollama" }
+                "2" { Get-ContainerName -Service "api" }
+                "3" { Get-ContainerName -Service "scraper" }
+                "4" { Get-ContainerName -Service "db" }
+                "5" { Get-ContainerName -Service "ollama" }
                 default { $null }
             }
             

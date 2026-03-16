@@ -67,6 +67,7 @@ graph TD
         subgraph App_Services [Application Services]
             direction LR
             WEB[dva-web<br/>Streamlit UI<br/>RAG / LLM]
+            API[dva-api<br/>FastAPI<br/>System Status API]
             SCR[dva-scraper<br/>Crawler +<br/>Embeddings]
             SCH[dva-scheduler<br/>Ofelia cron]
         end
@@ -74,7 +75,8 @@ graph TD
         DB[(dva-db<br/>PostgreSQL 15<br/>+ pgvector)]
         OLL[ollama<br/>Ollama Docker<br/>GPU pass-through]
 
-        WEB --- DB
+        WEB --- API
+        API --- DB
         SCR --- DB
         SCH --- SCR
         DB --- OLL
@@ -92,6 +94,7 @@ graph TD
 | `ollama` | `ollama/ollama:0.6.1` | LLM inference + embeddings (GPU-accelerated) |
 | `dva-db` | `pgvector/pgvector:pg15` | PostgreSQL 15 + pgvector extension |
 | `dva-web` | `dva-assistant-web` | Streamlit UI + RAG pipeline |
+| `dva-api` | `dva-assistant-api` | FastAPI for System Status polling |
 | `dva-scraper` | `dva-assistant-scraper` | Multi-source web crawler |
 | `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled scrape jobs (runs monthly) |
 
@@ -104,7 +107,7 @@ graph TD
 | Multi-source knowledge base | CLIK, DVA.gov.au, legislation.gov.au, Support sites |
 | Multi-model routing | Auto-selects optimal model by query complexity |
 | Hardware detection | GPU detection with model recommendations |
-| Dynamic System Load | Real-time weighted metrics (GPU/CPU/VRAM/Mem/Disk/Net) with 2s auto-refresh |
+| Dynamic System Load | Real-time weighted metrics (GPU/CPU/VRAM/Mem/Disk/Net) with manual refresh |
 | System Load thresholds | Color-coded warnings: ≤50% green, 51-70% yellow, 71-90% orange, >90% red |
 | Hardware-adaptive weights | Dynamic weighting adjusts based on GPU availability and VRAM pressure |
 | Task-bound detection | Detects GPU/CPU/VRAM/Disk/Network-bound tasks and applies 95% weight to bottleneck |
@@ -149,6 +152,7 @@ Core dependencies (installed automatically via Dockerfile):
 |---------|---------|---------|
 | streamlit | ≥1.30.0 | Web UI framework |
 | streamlit-autorefresh | ≥1.0.0 | Auto-refresh for System Load |
+| streamlit-javascript | ≥0.1.0 | JavaScript integration for polling |
 | psutil | ≥5.9.0 | System metrics (CPU, memory, disk) |
 | psycopg2-binary | ≥2.9.0 | PostgreSQL connection |
 | pgvector | ≥0.2.0 | Vector similarity search |
@@ -278,7 +282,7 @@ dva-assistant/
 
 ## System Load Monitoring
 
-The UI sidebar displays a **System Load (%)** bar with dynamic color coding:
+The UI sidebar displays a **System Load (%)** bar with dynamic color coding. The System Status section includes a **Refresh** button to update metrics on demand. Stats also automatically refresh when you interact with the page (send a message, click buttons, etc.).
 
 | Load Range | Color | Hex |
 |-------------|-------|-----|

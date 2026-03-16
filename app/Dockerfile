@@ -21,10 +21,16 @@ RUN pip install --no-cache-dir \
     langchain-ollama \
     ollama \
     streamlit \
+    streamlit-autorefresh \
+    streamlit-javascript \
     python-dotenv \
     requests \
     pyyaml \
-    pandas
+    pandas \
+    psutil \
+    fastapi \
+    uvicorn \
+    nvidia-ml-py3
 
 RUN playwright install chromium --with-deps
 
