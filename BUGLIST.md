@@ -7,6 +7,12 @@ Does upgrading python to the latest version provide any meaningful beenfits to t
 
 ## UI
 
+### Drop down list
+
+with regards to ui.py, it does not Automatically resets to "Select a question..." after the answer is displayed
+
+### Citations and References
+
 Provide better summaries of the references.  Some are simply one letter.  Needs to be a short sentence.
 
 For example - see the references are listed in long and short form.  do one only.
@@ -27,8 +33,6 @@ For example - see the references are listed in long and short form.  do one only
 [6] Confused: Is DVA Incapacity Payment the same as a Class A/B/C pension?
 
 ```
-
-padding in between Common Questions sectiosn e.g. Eligibility & Entitlements" is too large.
 
 ## Reapeat exact question wastes time and resource reinferring
 
@@ -76,12 +80,13 @@ VALIDATE REQUIREMENT AFTER MODEL ROUTING CHANGES:
 
 Dynamic update of System Load (%) bar information without breaking response visibility or refreshing entire app.
 
-RESOLVED (March 2026): 
-- Added dva-api container (FastAPI on port 8502) for System Status polling
-- UI sidebar displays styled metrics (GPU, VRAM, Temp, Net)
-- Stats update automatically on page interaction
-- No refresh button during generation to prevent cancellation
-- Removed auto-refresh (caused full page reloads in Streamlit)
+RESOLVED (March 2026):
+
+* Added dva-api container (FastAPI on port 8502) for System Status polling
+* UI sidebar displays styled metrics (GPU, VRAM, Temp, Net)
+* Stats update automatically on page interaction
+* No refresh button during generation to prevent cancellation
+* Removed auto-refresh (caused full page reloads in Streamlit)
 
 VRAM critical warning should be shown once per minute while condition is true.  When hover over with mouse, explain concisley the problem and solution (e.g. model bigger than vram - choose another model using.
 

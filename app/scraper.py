@@ -176,7 +176,9 @@ def scrape_url(url: str, max_depth: int = 2) -> Dict:
     return result
 
 
-def store_content(url: str, title: str, content: str, source_type: str = None, chunk_index: int = 0, chunk_total: int = 1):
+def store_content(url: str, title: str, content: Optional[str] = None, source_type: Optional[str] = None, chunk_index: int = 0, chunk_total: int = 1):
+    if not content:
+        content = ""
     content_hash = compute_hash(content)
     source_type = source_type or determine_source_type(url)
     trust_level = determine_trust_level(url)

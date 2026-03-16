@@ -240,15 +240,10 @@ def render_sidebar():
                 for q in questions[:3]:
                     all_questions.append(q)
             
-            # Check if we need to reset the dropdown (after answer is shown)
-            if st.session_state.get('faq_should_reset', False):
-                st.session_state.faq_dropdown_value = "Select a question..."
-                st.session_state.faq_should_reset = False
-            
-            current_val = st.session_state.get('faq_dropdown_value', "Select a question...")
-            
-            # Find index - default to 0 if not in list
             options = ["Select a question..."] + all_questions
+            
+            # Determine current index - use session state
+            current_val = st.session_state.get('faq_current_value', "Select a question...")
             if current_val in all_questions:
                 idx = all_questions.index(current_val) + 1
             else:
@@ -256,10 +251,11 @@ def render_sidebar():
             
             selected = st.selectbox("❓ Common Questions", options, key="faq_dropdown", index=idx)
             
-            # Track selection for next render
-            st.session_state.faq_dropdown_value = selected
+            # Update session state
+            if selected != st.session_state.get('faq_current_value'):
+                st.session_state.faq_current_value = selected
             
-            # Trigger processing if new selection (not same as last processed)
+            # Trigger processing if new selection
             if selected and selected != "Select a question...":
                 if selected != st.session_state.get('last_processed_question'):
                     st.session_state.pending_question = selected
@@ -380,9 +376,6 @@ def process_question(prompt: str):
             "sources": sources,
             "metadata": metadata,
         })
-        
-        # Reset dropdown after answer is displayed
-        st.session_state.faq_should_reset = True
 
 
 def check_vram_warnings():
@@ -439,9 +432,9 @@ def main():
         question = st.session_state.pending_question
         st.session_state.last_processed_question = question
         st.session_state.pending_question = None
-        # Mark that dropdown should reset on next render
-        st.session_state.last_question_processed = True
         process_question(question)
+        # Reset dropdown after processing completes
+        st.session_state.faq_current_value = "Select a question..."
     
     for msg in st.session_state.messages:
         render_message_item(msg)
