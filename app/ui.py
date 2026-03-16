@@ -99,27 +99,104 @@ def render_system_status():
     load_val = sys_load.get("load", 0)
     has_gpu = sys_load.get("has_gpu", False)
     
-    st.markdown("### System Load")
-    st.progress(load_val / 100, text=f"{load_val:.0f}%")
+    if load_val <= 50:
+        load_color = "#22c55e"
+    elif load_val <= 70:
+        load_color = "#eab308"
+    elif load_val <= 90:
+        load_color = "#f97316"
+    else:
+        load_color = "#ef4444"
+    
+    status_html = f"""
+    <style>
+        .sys-status {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+        .sys-title {{ font-size: 14px; font-weight: 600; color: #e5e7eb; margin-bottom: 8px; }}
+        .sys-bar-container {{ background: #1f2937; border-radius: 8px; height: 20px; width: 100%; margin-bottom: 12px; }}
+        .sys-bar {{ background: {load_color}; border-radius: 8px; height: 100%; width: {load_val}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 600; transition: width 0.3s ease; }}
+        .sys-metrics {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 8px; }}
+        .sys-metric {{ text-align: center; padding: 8px 4px; background: #1f2937; border-radius: 6px; }}
+        .sys-metric-label {{ font-size: 10px; color: #9ca3af; text-transform: uppercase; }}
+        .sys-metric-value {{ font-size: 16px; font-weight: 700; color: #f3f4f6; }}
+        .sys-vram {{ font-size: 11px; color: #9ca3af; text-align: center; margin-bottom: 8px; }}
+        .sys-warning {{ font-size: 11px; padding: 6px; border-radius: 4px; margin-bottom: 8px; }}
+        .sys-warning-high {{ background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }}
+        .sys-warning-med {{ background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }}
+        .sys-btn {{ background: #374151; color: #e5e7eb; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 11px; width: 100%; }}
+        .sys-btn:hover {{ background: #4b5563; }}
+    </style>
+    <div class="sys-status">
+        <div class="sys-title">System Load</div>
+        <div class="sys-bar-container">
+            <div class="sys-bar">{load_val:.0f}%</div>
+        </div>
+    """
     
     if has_gpu:
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("GPU", f"{sys_load.get('gpu', 0):.0f}%")
-        col2.metric("VRAM", f"{sys_load.get('vram', 0):.0f}%")
-        col3.metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
-        col4.metric("Net", f"{sys_load.get('network', 0):.1f}%")
-        st.caption(f"VRAM: {sys_load.get('vram_free_gb', 0):.1f}GB free")
+        gpu = sys_load.get('gpu', 0)
+        vram = sys_load.get('vram', 0)
+        temp = sys_load.get('gpu_temp', 0)
+        net = sys_load.get('network', 0)
+        vram_free = sys_load.get('vram_free_gb', 0)
+        
+        status_html += f"""
+        <div class="sys-metrics">
+            <div class="sys-metric">
+                <div class="sys-metric-label">GPU</div>
+                <div class="sys-metric-value">{gpu:.0f}%</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">VRAM</div>
+                <div class="sys-metric-value">{vram:.0f}%</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">Temp</div>
+                <div class="sys-metric-value">{temp}°</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">Net</div>
+                <div class="sys-metric-value">{net:.0f}%</div>
+            </div>
+        </div>
+        <div class="sys-vram">{vram_free:.1f} GB free</div>
+        """
     else:
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("CPU", f"{sys_load.get('cpu', 0):.0f}%")
-        col2.metric("Mem", f"{sys_load.get('memory', 0):.0f}%")
-        col3.metric("Disk", f"{sys_load.get('disk', 0):.0f}%")
-        col4.metric("Net", f"{sys_load.get('network', 0):.1f}%")
+        cpu = sys_load.get('cpu', 0)
+        mem = sys_load.get('memory', 0)
+        disk = sys_load.get('disk', 0)
+        net = sys_load.get('network', 0)
+        
+        status_html += f"""
+        <div class="sys-metrics">
+            <div class="sys-metric">
+                <div class="sys-metric-label">CPU</div>
+                <div class="sys-metric-value">{cpu:.0f}%</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">Mem</div>
+                <div class="sys-metric-value">{mem:.0f}%</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">Disk</div>
+                <div class="sys-metric-value">{disk:.0f}%</div>
+            </div>
+            <div class="sys-metric">
+                <div class="sys-metric-label">Net</div>
+                <div class="sys-metric-value">{net:.0f}%</div>
+            </div>
+        </div>
+        """
     
     warnings = sys_load.get("warnings", [])
     if warnings:
         for w in warnings:
-            st.warning(w)
+            status_html += f'<div class="sys-warning sys-warning-med">⚠️ {w}</div>'
+    
+    status_html += """
+    </div>
+    """
+    
+    st.html(status_html)
     
     if st.button("🔄 Refresh", key="refresh_status"):
         st.rerun()
