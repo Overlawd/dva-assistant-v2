@@ -5,6 +5,9 @@ High Priority
 3	Query Caching	Cache frequent queries to reduce LLM API calls
 4	Better Error Handling	Graceful degradation when Ollama models unavailable
 
+Based on the build, the use case and tech, what other models may be useful to incorporate.
+
+
 Medium Priority
 #	Improvement	Description
 5	Multi-user Support	User authentication and personalized history
