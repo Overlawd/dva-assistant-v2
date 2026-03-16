@@ -437,6 +437,15 @@ function Show-Diagnostic {
         }
         
         Write-Host ""
+        Write-Host "API Test:" -ForegroundColor Cyan
+        try {
+            $response = Invoke-RestMethod -Uri "http://localhost:8502/api/health" -TimeoutSec 5
+            Write-Host "  API Status: $($response.status)" -ForegroundColor Green
+        } catch {
+            Write-Host "  Failed to connect: $_" -ForegroundColor Red
+        }
+        
+        Write-Host ""
         Write-Host "Database Test:" -ForegroundColor Cyan
         $dbContainer = Get-ContainerName -Service "db"
         $result = docker exec $dbContainer psql -U postgres -d dva_db -t -c "SELECT COUNT(*) FROM scraped_content" 2>$null

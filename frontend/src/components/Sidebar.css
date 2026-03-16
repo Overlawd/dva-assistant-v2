@@ -1,0 +1,117 @@
+.sidebar-content {
+  flex: 1;
+  padding: 0.5rem;
+  overflow-y: auto;
+}
+
+.sidebar-section {
+  margin-bottom: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.section-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: #f8fafc;
+  border: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.section-header:hover {
+  background: #f1f5f9;
+}
+
+.section-header.expanded {
+  background: #e2e8f0;
+}
+
+.arrow {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.section-content {
+  padding: 0.75rem;
+  background: white;
+}
+
+.section-content select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+  cursor: pointer;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.stat-item span:nth-child(2) {
+  flex: 1;
+}
+
+.stat-item span:nth-child(3) {
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.recent-list {
+  margin: 0.5rem 0;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.recent-list small {
+  display: block;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.recent-item {
+  font-size: 0.7rem;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clear-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clear-btn:hover {
+  background: #dc2626;
+}
+
+.no-data {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  text-align: center;
+}

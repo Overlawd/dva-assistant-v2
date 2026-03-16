@@ -1,5 +1,22 @@
 # DVA Wizard v3.0 - Bug List & Feature Requests
 
+## v3.0 Architecture Change (March 2026)
+
+**IMPORTANT - Architecture Change:**
+
+The v3.0 has been rebuilt from the ground up to address the Streamlit limitations:
+
+- **Frontend:** React SPA served by Nginx (replaces Streamlit)
+- **Backend:** FastAPI (enhanced from existing api.py)
+- **Real-time Status:** Polls every 2 seconds via JavaScript - no page refresh needed
+- **Container Changes:**
+  - `dva-web` now serves React build via Nginx on port 80
+  - `dva-api` handles chat + system status endpoints
+  - Access UI at http://localhost:8501
+  - Access API at http://localhost:8502
+
+---
+
 ## Migration Notes (v3.0)
 
 - Migrated from dva-assistant-v2 to dva_wizard_v3
@@ -11,7 +28,7 @@
 # FIX the following errors in scraper.py
 
 * Expression of type "None" cannot be assigned to parameter of type "str"
-  "None" is not assignable to "str" line 179 Col 74
+    "None" is not assignable to "str" line 179 Col 74
 
 Does upgrading python to the latest version provide any meaningful beenfits to this application?
 
@@ -77,13 +94,13 @@ VALIDATE REQUIREMENT AFTER MODEL ROUTING CHANGES:
 
 Dynamic update of System Load (%) bar information without breaking response visibility or refreshing entire app.
 
-RESOLVED (March 2026):
+**RESOLVED (v3.0 - React Rebuild):**
 
-* Added dva-api container (FastAPI on port 8502) for System Status polling
-* UI sidebar displays styled metrics (GPU, VRAM, Temp, Net)
-* Stats update automatically on page interaction
-* No refresh button during generation to prevent cancellation
-* Removed auto-refresh (caused full page reloads in Streamlit)
+- ✅ React frontend with real-time polling (2 second intervals)
+- ✅ No page refresh - JavaScript fetches /api/system-status independently
+- ✅ Chat and sidebar work independently
+- ✅ dva-api container provides system status on port 8502
+- ✅ Color-coded load bar with warnings
 
 VRAM critical warning should be shown once per minute while condition is true.  When hover over with mouse, explain concisley the problem and solution (e.g. model bigger than vram - choose another model using.
 
@@ -96,3 +113,21 @@ DVA_GOV          = <https://www.dva.gov.au/>
 LEGISLATION      = BOTH :  <https://www.rma.gov.au/> AND <https://www.legislation.gov.au/> to be opened in different tabs in browser when clicked.
 REDDIT          = <https://www.reddit.com/r/DVAAustralia/>
 SUPPORT         = create internal webpage to be displayed in app.  for now make it a landing page with the seeds listed.
+
+---
+
+## v3.0 API Endpoints
+
+| Endpoint | Description |
+| --- | --- |
+| `GET /api/system-status` | Real-time metrics (GPU, CPU, VRAM) |
+| `POST /api/chat` | Send message, get answer |
+| `GET /api/common-questions` | FAQ by category |
+| `GET /api/knowledge-stats` | Database statistics |
+| `GET /api/health` | Health check |
+
+Test commands:
+```powershell
+curl http://localhost:8502/api/health
+curl http://localhost:8502/api/system-status
+```

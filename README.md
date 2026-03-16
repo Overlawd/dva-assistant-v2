@@ -1,11 +1,12 @@
 # 🎖️ DVA Wizard v3.0
 
-> **Enhanced RAG system with multi-model routing, improved embeddings, hardware-adaptive model selection, and single-page dashboard UI**
+> **Enhanced RAG system with multi-model routing, hardware-adaptive model selection, and React-based real-time dashboard**
 
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://www.docker.com/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)](https://www.postgresql.org/)
 [![Python](https://img.shields.io/badge/Python-3.11-green)](https://www.python.org/)
-[![Streamlit](https://img.shields.io/badge/UI-Streamlit_1.55-red)](https://streamlit.io/)
+[![React](https://img.shields.io/badge/UI-React_18-blue)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-blue)](https://fastapi.tiangolo.com/)
 [![Ollama](https://img.shields.io/badge/LLM-Ollama_0.6.1-purple)](https://ollama.com/)
 
 **Author:** Ben Reay
@@ -18,9 +19,8 @@ The **DVA Wizard v3.0** is a Retrieval-Augmented Generation (RAG) system that le
 
 ### Key Features (v3.0)
 
-- **Single-page dashboard** - Chat in main area with collapsible sidebar sections
-- **Native Streamlit sidebar** - System Status, Common Questions, Settings in expandable panels
-- **Independent operation** - Each sidebar section works without breaking chat
+- **Real-time Dashboard** - React-based UI with System Status refreshing every 2 seconds
+- **Independent Panels** - Chat and sidebar work independently without interfering
 - **Multi-model routing** - Automatically selects optimal model based on query complexity
 - **Hardware detection** - Auto-detects GPU and recommends optimal models
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
@@ -29,7 +29,6 @@ The **DVA Wizard v3.0** is a Retrieval-Augmented Generation (RAG) system that le
 - **Session memory** - Remembers veteran's context (service, conditions) within session
 - **Duplicate question detection** - Avoids re-inference for repeated questions
 - **Recent questions context** - Uses last 100 questions to improve response relevance
-- **Browser refresh warning** - Warns user that session data will be lost on refresh
 
 The system combines two retrieval strategies:
 - **Text-to-SQL** for structured queries (Acts, service categories, standards of proof)
@@ -66,12 +65,16 @@ The system applies MRCA priority through re-ranker boosts and LLM prompt instruc
 
 ```mermaid
 graph TD
+    subgraph Client[User Interface]
+        REACT[React SPA<br/>:8501]
+    end
+    
     subgraph Docker_Stack [Docker Compose Stack]
         direction TB
         subgraph App_Services [Application Services]
             direction LR
-            WEB[dva-web<br/>Streamlit UI<br/>RAG / LLM]
-            API[dva-api<br/>FastAPI<br/>System Status API]
+            WEB[dva-web<br/>React + Nginx<br/>Real-time Dashboard]
+            API[dva-api<br/>FastAPI<br/>Chat + Status API]
             SCR[dva-scraper<br/>Crawler +<br/>Embeddings]
             SCH[dva-scheduler<br/>Ofelia cron]
         end
@@ -79,16 +82,50 @@ graph TD
         DB[(dva-db<br/>PostgreSQL 15<br/>+ pgvector)]
         OLL[ollama<br/>Ollama Docker<br/>GPU pass-through]
 
-        WEB --- API
-        API --- DB
-        SCR --- DB
-        SCH --- SCR
-        DB --- OLL
+        REACT -->|HTTP/WebSocket| WEB
+        WEB -->|Proxy /api| API
+        API --> DB
+        API --> OLL
+        SCR --> DB
+        SCR --> OLL
+        SCH --> SCR
     end
 
     style Docker_Stack fill:#f9f9f9,stroke:#333,stroke-width:2px
     style DB fill:#e1f5fe,stroke:#01579b
     style OLL fill:#f3e5f5,stroke:#4a148c
+    style REACT fill:#e3f2fd,stroke:#1565c0
+```
+
+### Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant React as React UI
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Ollama as Ollama
+
+    Note over React: System Status polls<br/>every 2 seconds
+    
+    React->>API: GET /api/system-status
+    API->>API: Gather metrics
+    API-->>React: {gpu, vram, cpu, ...}
+    
+    User->>React: Send message
+    React->>API: POST /api/chat
+    API->>DB: SQL + Vector search
+    DB-->>API: Results
+    
+    API->>Ollama: Generate embedding
+    Ollama-->>API: Embedding
+    
+    API->>Ollama: Generate answer
+    Ollama-->>API: Answer
+    
+    API-->>React: {answer, sources, model}
+    React->>User: Display response
 ```
 
 ### Services
@@ -97,9 +134,9 @@ graph TD
 | --- | --- | --- |
 | `ollama` | `ollama/ollama:0.6.1` | LLM inference + embeddings (GPU-accelerated) |
 | `dva-db` | `pgvector/pgvector:pg15` | PostgreSQL 15 + pgvector extension |
-| `dva-web` | `dva-assistant-web` | Streamlit UI + RAG pipeline |
-| `dva-api` | `dva-assistant-api` | FastAPI for System Status polling |
-| `dva-scraper` | `dva-assistant-scraper` | Multi-source web crawler |
+| `dva-web` | `dva-wizard-web` | React UI served by Nginx |
+| `dva-api` | `dva-wizard-api` | FastAPI for Chat + System Status polling |
+| `dva-scraper` | `dva-wizard-scraper` | Multi-source web crawler |
 | `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled monthly scrape jobs |
 
 ---
@@ -107,11 +144,11 @@ graph TD
 ## Features
 
 | Feature | Description |
-|---------|-------------|
+| --- | --- |
+| Real-time System Status | GPU/CPU/VRAM/Memory updates every 2 seconds |
 | Multi-source knowledge base | CLIK, DVA.gov.au, legislation.gov.au, Support sites |
 | Multi-model routing | Auto-selects optimal model by query complexity |
 | Hardware detection | GPU detection with model recommendations |
-| Dynamic System Load | Real-time weighted metrics (GPU/CPU/VRAM/Mem/Disk/Net) with manual refresh |
 | System Load thresholds | Color-coded warnings: ≤50% green, 51-70% yellow, 71-90% orange, >90% red |
 | Hardware-adaptive weights | Dynamic weighting adjusts based on GPU availability and VRAM pressure |
 | Task-bound detection | Detects GPU/CPU/VRAM/Disk/Network-bound tasks and applies 95% weight to bottleneck |
@@ -148,22 +185,6 @@ graph TD
 | **Windows 11** | ✅ WSL 2 + Docker Desktop |
 | **macOS** | ✅ CPU-only |
 | **Linux** | ✅ Ubuntu 20.04+ |
-
-### Python Dependencies
-
-Core dependencies (installed automatically via Dockerfile):
-
-| Package | Version | Purpose |
-|---------|---------|---------|
-| streamlit | ≥1.30.0 | Web UI framework |
-| streamlit-autorefresh | ≥1.0.0 | Auto-refresh for System Load |
-| streamlit-javascript | ≥0.1.0 | JavaScript integration for polling |
-| psutil | ≥5.9.0 | System metrics (CPU, memory, disk) |
-| psycopg2-binary | ≥2.9.0 | PostgreSQL connection |
-| pgvector | ≥0.2.0 | Vector similarity search |
-| langchain-ollama | ≥0.1.0 | Ollama LLM integration |
-| playwright | ≥1.40.0 | Web scraping |
-| beautifulsoup4 | ≥4.12.0 | HTML parsing |
 
 ---
 
@@ -203,7 +224,7 @@ New-Item -ItemType Directory -Path ".\initdb" -Force
 Copy-Item ".\app\init.sql" ".\initdb\init.sql"
 ```
 
-### 4. Start Stack
+### 4. Build and Start Stack
 
 > **Important:** The web container requires GPU access for optimal performance. The docker-compose.yml includes GPU passthrough configuration.
 
@@ -236,23 +257,36 @@ Navigate to [http://localhost:8501](http://localhost:8501)
 dva_wizard_v3/
 ├── .env                          ← environment config
 ├── _env                          ← environment template
-├── docker-compose.yml
+├── docker-compose.yml            ← container orchestration
 ├── admin_tasks.ps1               ← Admin console (Windows)
 ├── backups/                      ← Backup storage
 ├── initdb/
 │   └── init.sql                  ← Database schema
-└── app/
-    ├── main.py                   ← Core RAG pipeline
-    ├── ui.py                     ← Streamlit interface (single-page dashboard)
-    ├── scraper.py                ← Web crawler
-    ├── model_manager.py           ← Hardware detection
-    ├── sql_generator.py           ← SQL generation
-    ├── context_summarizer.py      ← Context compression
-    ├── reembed.py                 ← Embedding reindexing
-    ├── health.py                  ← Health checks
-    ├── veteran_faq.py             ← Common veteran questions
-    ├── migrate.py                 ← Schema verification
-    ├── requirements.txt
+├── app/
+│   ├── main.py                   ← Core RAG pipeline
+│   ├── api.py                    ← FastAPI endpoints (Chat + Status)
+│   ├── scraper.py                ← Web crawler
+│   ├── model_manager.py           ← Hardware detection
+│   ├── sql_generator.py           ← SQL generation
+│   ├── context_summarizer.py      ← Context compression
+│   ├── reembed.py                 ← Embedding reindexing
+│   ├── health.py                  ← Health checks
+│   ├── veteran_faq.py             ← Common veteran questions
+│   ├── migrate.py                 ← Schema verification
+│   ├── requirements.txt
+│   └── Dockerfile
+└── frontend/
+    ├── src/
+    │   ├── App.js                 ← Main React app
+    │   ├── components/
+    │   │   ├── SystemStatus.js    ← Real-time status (2s refresh)
+    │   │   ├── Chat.js            ← Chat interface
+    │   │   └── Sidebar.js         ← Common questions + settings
+    │   └── App.css
+    ├── public/
+    │   └── index.html
+    ├── package.json
+    ├── nginx.conf
     └── Dockerfile
 ```
 
@@ -278,18 +312,11 @@ dva_wizard_v3/
 The `dva-scheduler` container runs automatic monthly scrapes using [Ofelia](https://github.com/mcuadros/ofelia):
 
 | Setting | Value |
-|---------|-------|
+| --- | --- |
 | Schedule | Monthly on the 1st at 2:00 AM |
 | Command | `python scraper.py 200 --force` |
 | Pages | 200 (ignores 7-day freshness check) |
 | Container | dva-scraper |
-
-### How It Works
-
-1. Ofelia runs inside the `dva-scheduler` container
-2. At 2:00 AM on the 1st of each month, it executes the scraper
-3. The `--force` flag bypasses the 7-day freshness check
-4. Logs are saved automatically
 
 ### Viewing Scheduler Logs
 
@@ -309,18 +336,10 @@ To trigger a scrape manually:
 docker exec dva-scraper python scraper.py 200 --force
 ```
 
-### Disable Scheduler
-
-If you don't want automatic scrapes, remove the `scheduler` service from docker-compose.yml or simply don't start it:
-
-```bash
-docker compose up -d ollama db web api scraper
-```
-
 ## Hardware-Adaptive Models
 
 | VRAM | Chat | Reasoning | SQL | Embeddings |
-|------|------|-----------|-----|------------|
+| --- | --- | --- | --- | --- |
 | 0-4 GB | phi3:3.8b-mini | phi3:3.8b-mini | phi3:3.8b-mini | nomic-embed-text |
 | 4-6 GB | llama3.1:8b | qwen2.5:14b | codellama:7b | mxbai-embed-large |
 | 6-8 GB | llama3.1:8b | qwen2.5:14b | codellama:7b | mxbai-embed-large |
@@ -329,53 +348,25 @@ docker compose up -d ollama db web api scraper
 
 ---
 
-## System Load Monitoring
+## Real-Time System Status
 
-The UI sidebar displays a **System Load (%)** bar with dynamic color coding. The System Status section updates automatically when you interact with the page (send messages, click expanders, etc.).
+The React dashboard includes a **System Status** panel that updates every 2 seconds without interrupting chat or other interactions:
 
----
+```mermaid
+flowchart TD
+    START([Page Load]) --> POLL[Start 2s polling]
+    POLL --> FETCH[Fetch /api/system-status]
+    FETCH --> RENDER[Render metrics in sidebar]
+    RENDER --> WAIT[Wait 2 seconds]
+    WAIT --> FETCH
+```
 
-## Session Features
-
-### Duplicate Question Detection
-
-When you ask the exact same question twice within a session:
-
-1. The question is displayed in the chat (as normal)
-2. The system responds: "You just asked me that. If you'd like me to say it again, just say yes, otherwise I'll await your next question."
-3. If you respond with "yes/yep/sure", the previous answer is repeated without re-inference
-4. If you ask anything else, the conversation continues normally
-
-**Benefits:**
-- Saves GPU resources by avoiding duplicate inference
-- Faster response for repeated questions
-- Tracks last 100 questions in session
-
-### Recent Questions Context
-
-The system maintains context from your last 100 questions to improve response quality:
-
-- Questions are used to enhance semantic search (appends recent topics to query)
-- Context is included in system prompt for better relevance
-- Follow-up questions (e.g., "what about X?" after asking about Y) get better results
-
-### Browser Refresh Warning
-
-When you attempt to refresh or close the browser tab, a warning appears: "Warning: Refreshing this page will lose your conversation history. Continue?"
-
-This helps prevent accidental loss of session data.
-
-### Chat History
-
-- Messages display in chronological order (question followed by answer)
-- Chat history is maintained throughout the session
-- Previous responses can be scrolled and reviewed
-- Note: Refreshing the browser clears all session data
+### System Load Display
 
 | Load Range | Color | Hex |
-|-------------|-------|-----|
+| --- | --- | --- |
 | ≤50% | Green | #22c55e |
-| 51-70% | Canary Yellow | #ffef00 |
+| 51-70% | Canary Yellow | #eab308 |
 | 71-90% | Orange | #f97316 |
 | >90% | Red | #ef4444 |
 
@@ -384,7 +375,7 @@ This helps prevent accidental loss of session data.
 System load uses hardware-adaptive weights:
 
 | Scenario | GPU | VRAM | CPU | Memory | Disk | Network |
-|----------|-----|------|-----|--------|------|---------|
+| --- | --- | --- | --- | --- | --- | --- |
 | GPU available (normal) | 40% | 15% | 20% | 10% | 10% | 5% |
 | GPU available (high VRAM ≥85%) | 30% | 25% | 15% | 10% | 15% | 5% |
 | CPU only | 0% | 0% | 50% | 25% | 20% | 5% |
@@ -394,21 +385,19 @@ System load uses hardware-adaptive weights:
 When a specific hardware resource becomes the bottleneck, the system detects it and applies 95% weight to that component:
 
 | Detected Task | Trigger Condition | UI Display |
-|---------------|------------------|------------|
+| --- | --- | --- |
 | GPU-Bound | Ollama active + GPU ≥70% | "GPU-Bound (embedding/inference)" |
 | VRAM-Bound | VRAM ≥90% | "VRAM-Bound (memory pressure)" |
 | CPU-Bound | CPU ≥85% + GPU <50% | "CPU-Bound (processing)" |
 | Disk I/O-Bound | Disk ≥80% + CPU <70% | "Disk I/O-Bound" |
 | Network-Bound | Network ≥70% + GPU/CPU <50% | "Network-Bound" |
 
-**Ramping:** Weight emphasis ramps from 0% to 95% over 3 refresh cycles for smooth transitions.
-
 ### Warnings
 
 Warnings appear when thresholds are exceeded:
 
 | Warning | Threshold | Behavior |
-|---------|-----------|----------|
+| --- | --- | --- |
 | GPU hot | GPU Temp ≥80°C | Shows warning, dismissible for 30s |
 | VRAM critical | VRAM ≥90% | Shows warning with ✕ button, dismissible for 30s |
 | Memory critical | Memory ≥90% | Shows warning, dismissible for 30s |
@@ -424,12 +413,12 @@ The System Status section includes an expandable **Model Suggestion** panel that
 - Works with hardware upgrades (e.g., 6GB → 12GB GPU)
 
 | Available VRAM | Suggested Model |
-|----------------|-----------------|
+| --- | --- |
 | ≥10 GB | qwen2.5:14b |
 | ≥6 GB | llama3.1:8b |
 | ≥5.5 GB | qwen2.5:7b |
 | ≥5 GB | codellama:7b |
-| <5 GB | llama3.1:8b (or reduce embeddings)
+| <5 GB | llama3.1:8b (or reduce embeddings) |
 
 ---
 
@@ -451,17 +440,12 @@ The admin console provides a menu-driven interface for managing the DVA Assistan
 | [4] Data Management | Backup/restore, database utilities |
 | [5] Diagnostics | Container status, API tests, view logs |
 
-### Features
-- Screen clears after actions complete (except errors)
-- "Press any key to continue" for output-heavy operations
-- Application menu adapts: if running shows restart/stop options, if stopped shows start option
-- GPU statistics refresh with 'R' key
-
 ---
 
 ### Application Control (Option 1)
 
 When application is **running**:
+
 | Sub-Option | Description |
 | --- | --- |
 | [1] Restart All | Stop all, then start all |
@@ -471,6 +455,7 @@ When application is **running**:
 | [5] Stop Application | Stop all containers |
 
 When application is **not running**:
+
 | Sub-Option | Description |
 | --- | --- |
 | [1] Start Application | Start all containers |
@@ -494,6 +479,7 @@ When application is **not running**:
 | [4] Switch Model | Change active model for chat/reasoning/SQL/summarization/embeddings |
 
 #### Available Models (configured in .env)
+
 | Model Type | Variable | Default | Purpose |
 | --- | --- | --- | --- |
 | Chat | MODEL_NAME | llama3.1:8b | General conversation |
@@ -526,23 +512,6 @@ When application is **not running**:
 | [6] Verify Reembed | Check migration status (rows embedded) |
 | [7] Create Index | Create HNSW index for faster vector search |
 
-#### Reembed Tool
-
-The reembed tool migrates content embeddings from one model to another (e.g., nomic-embed-text to mxbai-embed-large).
-
-> **Note:** v2 already uses `mxbai-embed-large` by default. This tool is mainly useful if you migrated data from v1.
-
-```bash
-# Run reembed
-docker exec dva-scraper python reembed.py
-
-# Verify migration status
-docker exec dva-scraper python reembed.py --verify
-
-# Create HNSW index for faster vector search
-docker exec dva-scraper python reembed.py --create-index
-```
-
 ---
 
 ### Diagnostic (Option 5)
@@ -565,19 +534,35 @@ docker exec dva-scraper python reembed.py --create-index
 | Ollama not responding | `docker compose restart ollama` |
 | Models not found | `docker exec dva-ollama ollama pull <model>` |
 | UI won't load | `docker compose restart web` |
+| API not responding | `docker compose restart api` |
 | GPU shows "CPU only" | 1. Install NVIDIA driver 2. Restart Docker Desktop 3. Rebuild web: `docker compose build web` |
 | nvidia-smi fails in container | Install NVIDIA Container Toolkit or use Docker Desktop with WSL 2 |
 
+### API Health Check
+
+```bash
+# Test API health
+curl http://localhost:8502/api/health
+
+# Test system status
+curl http://localhost:8502/api/system-status
+
+# Test chat endpoint
+curl -X POST http://localhost:8502/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is MRCA?"}'
+```
+
 ### GPU Configuration
 
-The docker-compose.yml includes GPU passthrough for both the `ollama` and `web` containers. If GPU is not detected:
+The docker-compose.yml includes GPU passthrough for both the `ollama` and `api` containers. If GPU is not detected:
 
 1. **Windows:** Ensure NVIDIA drivers are installed and Docker Desktop has WSL 2 integration enabled
 2. **Linux:** Install NVIDIA Container Toolkit: `nvidia-ctk runtime configure --runtime=docker`
 
 Verify GPU access:
 ```bash
-docker exec dva-web nvidia-smi
+docker exec dva-api nvidia-smi
 ```
 
 ---
@@ -616,7 +601,7 @@ The following enhancements are planned or under consideration for future release
 ### High Priority
 
 | # | Improvement | Description |
-|---|-------------|-------------|
+| --- | --- | --- |
 | 1 | **Vector Index Optimization** | Implement HNSW index for faster similarity search at scale |
 | 2 | **Incremental Embedding** | Only embed new/changed content instead of full reembed |
 | 3 | **Query Caching** | Cache frequent queries to reduce LLM API calls |
@@ -625,7 +610,7 @@ The following enhancements are planned or under consideration for future release
 ### Medium Priority
 
 | # | Improvement | Description |
-|---|-------------|-------------|
+| --- | --- | --- |
 | 5 | **Multi-user Support** | User authentication and personalized history |
 | 6 | **Citation Verification** | Auto-verify links are still active |
 | 7 | **Model Hot-swap** | Switch models without container restart |
@@ -634,7 +619,7 @@ The following enhancements are planned or under consideration for future release
 ### Low Priority / Experimental
 
 | # | Improvement | Description |
-|---|-------------|-------------|
+| --- | --- | --- |
 | 9 | **Voice Input** | Speech-to-text for accessibility |
 | 10 | **RAG Fine-tuning** | Fine-tune embeddings on veteran Q&A data |
 | 11 | **Agentic Scraping** | LLM-guided intelligent crawling |
@@ -642,30 +627,15 @@ The following enhancements are planned or under consideration for future release
 
 ---
 
-## UI Features (v3.0)
+## API Endpoints
 
-### Single-Page Dashboard Layout
-
-The v3.0 UI uses a single-page dashboard layout:
-
-- **Main Area (75%)**: Chat interface with messages and input
-- **Sidebar (25%)**: Three collapsible panels
-
-### Sidebar Panels
-
-| Panel | Description |
-|-------|-------------|
-| 📊 System Status | Always visible at top, shows GPU/CPU load, VRAM, temperature |
-| ❓ Common Questions | Expandable dropdown of common veteran questions |
-| ⚙️ Settings | Session info, recent questions, knowledge base stats |
-
-### How It Works
-
-1. Chat works independently - questions and answers flow in main area
-2. Sidebar panels are collapsible - click arrows to expand/collapse
-3. System Status updates when you interact with the page (send message, click expanders)
-4. Common Questions - select a question to automatically populate chat input
-5. Settings - view session history, recent questions, clear session
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/system-status` | GET | Real-time system metrics (GPU, CPU, VRAM, etc.) |
+| `/api/chat` | POST | Send a chat message and get response |
+| `/api/common-questions` | GET | Get common veteran questions by category |
+| `/api/knowledge-stats` | GET | Get knowledge base statistics |
+| `/api/health` | GET | Health check endpoint |
 
 ---
 

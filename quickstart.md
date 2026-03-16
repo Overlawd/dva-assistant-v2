@@ -60,8 +60,8 @@ You should see 5-6 containers running:
 
 - dva-ollama
 - dva-db  
-- dva-web
-- dva-api (for System Status polling)
+- dva-web (React + Nginx)
+- dva-api (FastAPI backend)
 - dva-scraper
 - dva-scheduler (automatic monthly scraping)
 
@@ -85,17 +85,27 @@ docker exec dva-ollama ollama pull mxbai-embed-large
 
 Open your browser to: **http://localhost:8501**
 
-In the sidebar, you should see:
-- **📊 System Status** - Real-time system metrics (GPU, VRAM, Temp)
+### Real-Time Dashboard
+
+The v3.0 React-based dashboard includes:
+
+- **📊 System Status** - Updates every 2 seconds with real-time GPU, VRAM, CPU, temperature
 - **❓ Common Questions** - Expandable panel with common veteran queries
-- **⚙️ Settings** - Session info and knowledge base stats
+- **⚙️ Settings** - Session info, recent questions, knowledge base stats
 
-The v3.0 UI has a single-page dashboard layout:
+The dashboard uses:
 - Main area: Chat interface
-- Sidebar: Collapsible panels for System Status, Questions, Settings
+- Right sidebar: Collapsible panels for System Status, Questions, Settings
 
-### Session Memory
+### Key v3.0 Features
 
+**Real-Time System Status:**
+- GPU/CPU/VRAM/Memory updates every 2 seconds
+- Color-coded load bar (green → yellow → orange → red)
+- Dismissible warnings for critical thresholds
+- Works independently of chat - no page refresh needed
+
+**Session Memory:**
 The assistant remembers context within your session:
 - **Statements** (e.g., "I served in the Army") are stored and used in future responses
 - **Questions** and answers are tracked for context continuity
@@ -107,18 +117,13 @@ Try this:
 
 The assistant will use your service context to provide relevant answers.
 
-### Duplicate Question Detection
-
+**Duplicate Question Detection:**
 If you ask the same question twice:
 1. The question displays in chat
 2. System asks: "You just asked me that. If you'd like me to say it again, just say yes..."
 3. Say "yes" to repeat the answer without re-inference
 
 This saves time and GPU resources.
-
-### Browser Refresh Warning
-
-A warning appears when refreshing the browser to prevent accidental data loss.
 
 ---
 
@@ -142,6 +147,26 @@ docker exec dva-scraper python scraper.py 300 --force
 | `docker compose logs -f` | View live logs |
 | `docker compose down` | Stop all services |
 | `docker compose down -v` | Stop and delete data |
+
+---
+
+## API Testing
+
+You can test the API directly:
+
+```powershell
+# Health check
+curl http://localhost:8502/api/health
+
+# System status (updates every 2s in UI)
+curl http://localhost:8502/api/system-status
+
+# Common questions
+curl http://localhost:8502/api/common-questions
+
+# Knowledge stats
+curl http://localhost:8502/api/knowledge-stats
+```
 
 ---
 
@@ -181,14 +206,24 @@ docker compose up -d
 
 1. Install NVIDIA driver and restart computer
 2. Restart Docker Desktop  
-3. Rebuild web container: `docker compose build web`
+3. Rebuild api container: `docker compose build api`
 
 Verify GPU access:
 ```powershell
-docker exec dva-web nvidia-smi
+docker exec dva-api nvidia-smi
 ```
 
 If GPU is working, you'll see your graphics card in the output.
+
+**Frontend not loading:**
+```powershell
+docker logs dva-web
+```
+
+**API not responding:**
+```powershell
+docker logs dva-api
+```
 
 ---
 

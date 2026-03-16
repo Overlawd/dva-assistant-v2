@@ -1,0 +1,99 @@
+.system-status {
+  padding: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.system-status h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: #1e293b;
+}
+
+.loading {
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+.load-bar-container {
+  margin-bottom: 1rem;
+}
+
+.load-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+}
+
+.load-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.load-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  background: #f8fafc;
+  border-radius: 6px;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+.metric-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.warnings {
+  margin-bottom: 0.75rem;
+}
+
+.warning-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-bottom: 0.25rem;
+}
+
+.warning-banner button {
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 0.75rem;
+}
+
+.update-note {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-align: center;
+}

@@ -31,10 +31,11 @@ services:
     networks:
       - dva_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dva_db"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
   api:
     build:
@@ -43,6 +44,20 @@ services:
     container_name: dva-api
     ports:
       - "8502:8502"
+    environment:
+      DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
+      OLLAMA_BASE_URL: http://ollama:11434
+      MODEL_NAME: ${MODEL_NAME:-llama3.1:8b}
+      MODEL_COMPLEX: ${MODEL_COMPLEX:-qwen2.5:14b}
+      SQL_MODEL: ${SQL_MODEL:-codellama:7b}
+      SUMMARIZER_MODEL: ${SUMMARIZER_MODEL:-qwen2.5:7b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
+      LLM_CTX: ${LLM_CTX:-8192}
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
     networks:
       - dva_network
     deploy:
@@ -56,37 +71,16 @@ services:
 
   web:
     build:
-      context: ./app
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: dva-web
     ports:
-      - "8501:8501"
-    environment:
-      DATABASE_URL: postgresql://postgres:vets_secure_pw@db:5432/dva_db
-      OLLAMA_BASE_URL: http://ollama:11434
-      MODEL_NAME: ${MODEL_NAME:-llama3.1:8b}
-      MODEL_COMPLEX: ${MODEL_COMPLEX:-qwen2.5:14b}
-      SQL_MODEL: ${SQL_MODEL:-codellama:7b}
-      SUMMARIZER_MODEL: ${SUMMARIZER_MODEL:-qwen2.5:7b}
-      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-mxbai-embed-large}
-      LLM_CTX: ${LLM_CTX:-8192}
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+      - "8501:80"
     depends_on:
-      db:
-        condition: service_healthy
-      ollama:
-        condition: service_started
+      - api
     networks:
       - dva_network
-    volumes:
-      - ./app:/app
-    command: streamlit run ui.py --server.port=8501 --server.address=0.0.0.0
+    restart: unless-stopped
 
   scraper:
     build:

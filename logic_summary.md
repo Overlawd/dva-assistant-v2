@@ -5,12 +5,19 @@
 ```mermaid
 flowchart TD
     subgraph Client[User Interface]
-        UI[Streamlit UI<br/>:8501]
+        REACT[React SPA<br/>:8501]
+    end
+    
+    subgraph Nginx[Reverse Proxy]
+        NGINX[dva-web<br/>Nginx]
+    end
+    
+    subgraph API_Service[API Container<br/>dva-api]
+        FASTAPI[FastAPI<br/>Endpoints]
     end
     
     subgraph Web_App[Web Container<br/>dva-web]
         MAIN[main.py<br/>RAG Pipeline]
-        UI_PY[ui.py<br/>Request Handler]
     end
     
     subgraph Scraper_App[Scraper Container<br/>dva-scraper]
@@ -26,13 +33,53 @@ flowchart TD
         EMBEDD[Embeddings]
     end
     
-    UI --> UI_PY
-    UI_PY --> MAIN
+    REACT -->|HTTP| NGINX
+    NGINX -->|Proxy /api| FASTAPI
+    FASTAPI --> MAIN
     MAIN --> PG
     MAIN --> LLM
     MAIN --> EMBEDD
     SCRAPER --> PG
     SCRAPER --> EMBEDD
+```
+
+---
+
+## Frontend-Backend Communication
+
+```mermaid
+sequenceDiagram
+    participant React as React UI
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Ollama as Ollama
+
+    Note over React: System Status polls<br/>every 2 seconds
+    
+    React->>API: GET /api/system-status
+    API->>API: Gather GPU/CPU/VRAM metrics
+    API-->>React: {gpu: 45, vram: 62, cpu: 23, ...}
+    React->>React: Update status panel
+    
+    loop Every 2 seconds
+        React->>API: GET /api/system-status
+        API-->>React: Updated metrics
+    end
+    
+    Note over React: User sends message
+    
+    React->>API: POST /api/chat {message: "..."}
+    API->>API: prepare_rag_context()
+    API->>DB: Execute SQL query
+    API->>DB: Vector search (pgvector)
+    API->>Ollama: Generate embedding
+    Ollama-->>API: Embedding vector
+    
+    API->>Ollama: Generate answer
+    Ollama-->>API: Answer text
+    
+    API-->>React: {answer: "...", sources: [...], model: "..."}
+    React->>React: Display message + sources
 ```
 
 ---
@@ -153,6 +200,63 @@ flowchart TD
     ROUTE_COMPLEX --> END_MODEL([Return selected<br/>model])
     ROUTE_TECH --> END_MODEL
     ROUTE_SIMPLE --> END_MODEL
+```
+
+---
+
+## Real-Time Status Polling
+
+```mermaid
+flowchart TD
+    START([Page Load]) --> INIT[Initialize polling<br/>timer]
+    
+    INIT --> WAIT{Wait 2 seconds}
+    WAIT --> FETCH[Fetch /api/system-status]
+    FETCH --> PARSE[Parse JSON<br/>GPU/VRAM/CPU/Mem]
+    PARSE --> RENDER[Render metrics<br/>in sidebar]
+    
+    RENDER --> WAIT
+    
+    style START fill:#e3f2fd,stroke:#1565c0
+    style FETCH fill:#e8f5e9,stroke:#2e7d32
+    style RENDER fill:#fff3e0,stroke:#ef6c00
+```
+
+---
+
+## System Load Calculation
+
+```mermaid
+flowchart TD
+    START([Metrics]) --> CHECK_HARDWARE{Has GPU?}
+    
+    CHECK_HARDWARE -->|Yes| GPU_WEIGHTS[Apply GPU weights<br/>GPU:40% VRAM:15%<br/>CPU:20% Mem:10%]
+    CHECK_HARDWARE -->|No| CPU_WEIGHTS[Apply CPU weights<br/>CPU:50% Mem:25%<br/>Disk:20% Net:5%]
+    
+    GPU_WEIGHTS --> CHECK_TASK{Detect task<br/>bottleneck?}
+    CPU_WEIGHTS --> CHECK_TASK
+    
+    CHECK_TASK -->|GPU-Bound| EMPHASIS_GPU[95% GPU<br/>weight]
+    CHECK_TASK -->|VRAM-Bound| EMPHASIS_VRAM[95% VRAM<br/>weight]
+    CHECK_TASK -->|CPU-Bound| EMPHASIS_CPU[95% CPU<br/>weight]
+    CHECK_TASK -->|None| NO_EMPHASIS[No<br/>emphasis]
+    
+    EMPHASIS_GPU --> CALC_LOAD
+    EMPHASIS_VRAM --> CALC_LOAD
+    EMPHASIS_CPU --> CALC_LOAD
+    NO_EMPHASIS --> CALC_LOAD
+    
+    CALC_LOAD[Calculate<br/>weighted load] --> COLOR[Determine<br/>color code]
+    
+    COLOR -->|≤50%| GREEN[Green #22c55e]
+    COLOR -->|51-70%| YELLOW[Yellow #eab308]
+    COLOR -->|71-90%| ORANGE[Orange #f97316]
+    COLOR -->|>90%| RED[Red #ef4444]
+    
+    GREEN --> RETURN([Return to UI])
+    YELLOW --> RETURN
+    ORANGE --> RETURN
+    RED --> RETURN
 ```
 
 ---
@@ -331,12 +435,24 @@ erDiagram
 ## Trust Level Hierarchy
 
 | Level | Source | Weight | Description |
-| ------- | -------- | -------- | ------------- |
+| --- | --- | --- | --- |
 | L1 | Federal Legislation | 0.25 | legislation.gov.au, rma.gov.au |
 | L2 | CLIK Official | 0.30 | clik.dva.gov.au |
 | L3 | DVA.gov.au / Gov | 0.20 | dva.gov.au, other .gov.au |
 | L4 | Service Providers | 0.15 | Non-gov support sites |
 | L5 | Community | 0.10 | Reddit, forums |
+
+---
+
+## API Endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/system-status` | GET | Real-time system metrics (GPU, CPU, VRAM) |
+| `/api/chat` | POST | Send chat message, receive answer |
+| `/api/common-questions` | GET | Get FAQ questions by category |
+| `/api/knowledge-stats` | Get | Get knowledge base statistics |
+| `/api/health` | GET | Health check |
 
 ---
 
@@ -354,99 +470,12 @@ LLM_CTX: 8192                   # Context window tokens
 
 ---
 
-## System Load Monitoring
-
-The System Status panel shows real-time system metrics in the sidebar. It updates automatically when you interact with the page (send messages, click buttons, expand sections).
-
-```mermaid
-flowchart TD
-    START([User Interaction<br/>or Page Load]) --> FETCH_API[Fetch from<br/>dva-api:8502]
-    
-    FETCH_API --> PARSE[Parse JSON<br/>GPU/VRAM/CPU/Mem]
-    PARSE --> RENDER[Render styled<br/>metrics in sidebar]
-```
-
-### Weight Schemas
-
-| Scenario | GPU | VRAM | CPU | Memory | Disk | Network |
-|----------|-----|------|-----|--------|------|---------|
-| GPU Normal | 40% | 15% | 20% | 10% | 10% | 5% |
-| GPU High VRAM | 30% | 25% | 15% | 10% | 15% | 5% |
-| CPU Only | 0% | 0% | 50% | 25% | 20% | 5% |
-
-### Thresholds
-
-| Level | Threshold | Color | Warning |
-|-------|-----------|-------|---------|
-| Safe | ≤50% | Green (#22c55e) | None |
-| Caution | 51-70% | Yellow (#ffef00) | None |
-| Warning | 71-90% | Orange (#f97316) | None |
-| Critical | >90% | Red (#ef4444) | GPU hot, VRAM/Mem/CPU critical |
-
-### Task-Bound Detection
-
-When a specific hardware resource becomes the bottleneck, the system detects it and applies 95% weight to that component via ramping:
-
-```mermaid
-flowchart TD
-    START([Metrics]) --> CHECK_OLLAMA{Ollama<br/>Active?}
-    
-    CHECK_OLLAMA -->|Yes| CHECK_GPU70{GPU ≥70%?}
-    CHECK_OLLAMA -->|No| CHECK_VRAM90
-    
-    CHECK_GPU70 -->|Yes| TASK_GPU[Task: GPU-Bound]
-    CHECK_GPU70 -->|No| CHECK_VRAM90
-    
-    CHECK_VRAM90{VRAM ≥90%} -->|Yes| TASK_VRAM[Task: VRAM-Bound]
-    CHECK_VRAM90 -->|No| CHECK_CPU85
-    
-    CHECK_CPU85{CPU ≥85%<br/>GPU <50%} -->|Yes| TASK_CPU[Task: CPU-Bound]
-    CHECK_CPU85 -->|No| CHECK_DISK80
-    
-    CHECK_DISK80{Disk ≥80%<br/>CPU <70%} -->|Yes| TASK_DISK[Task: Disk-Bound]
-    CHECK_DISK80 -->|No| CHECK_NET70
-    
-    CHECK_NET70{Net ≥70%<br/>GPU/CPU <50%} -->|Yes| TASK_NET[Task: Network-Bound]
-    CHECK_NET70 -->|No| TASK_NONE[Task: None]
-    
-    TASK_GPU --> RAMP[Add to<br/>task_history]
-    TASK_VRAM --> RAMP
-    TASK_CPU --> RAMP
-    TASK_DISK --> RAMP
-    TASK_NET --> RAMP
-    TASK_NONE --> RAMP
-    
-    RAMP --> RAMP_CALC{Count ≥3?<br/>3 refreshes}
-    RAMP_CALC -->|Yes| FACTOR_95[95% emphasis]
-    RAMP_CALC -->|No| FACTOR_RAMP[Proportional<br/>ramping]
-    
-    FACTOR_95 --> BLEND[Blend weights<br/>base → task]
-    FACTOR_RAMP --> BLEND
-    
-    BLEND --> APPLY[Apply to<br/>System Load]
-```
-
-### Task Detection Triggers
-
-| Detected Task | Trigger Condition |
-|---------------|------------------|
-| GPU-Bound | Ollama active + GPU ≥70% |
-| VRAM-Bound | VRAM ≥90% |
-| CPU-Bound | CPU ≥85% + GPU <50% |
-| Disk I/O-Bound | Disk ≥80% + CPU <70% |
-| Network-Bound | Network ≥70% + GPU/CPU <50% |
-
-**Ramping:** Weight emphasis ramps from 0% → 95% over 3 refresh cycles (6 seconds).
-
----
-
 ## File Purposes
 
 | File | Purpose |
-| ------ | --------- |
+| --- | --- |
 | `main.py` | Core RAG pipeline, query processing, LLM invocation |
-| `ui.py` | Streamlit UI, user interaction handling |
-| `api.py` | FastAPI endpoint for System Status polling (port 8502) |
+| `api.py` | FastAPI endpoints for React frontend integration |
 | `scraper.py` | Web crawling, content extraction, embedding generation |
 | `model_manager.py` | Hardware detection, model recommendations |
 | `sql_generator.py` | Natural language to SQL conversion |
@@ -454,3 +483,13 @@ flowchart TD
 | `health.py` | System health checks |
 | `reembed.py` | Re-embedding existing content with new models |
 | `init.sql` | Database schema initialization |
+
+### Frontend Files
+
+| File | Purpose |
+| --- | --- |
+| `frontend/src/App.js` | Main React application |
+| `frontend/src/components/SystemStatus.js` | Real-time status panel (2s refresh) |
+| `frontend/src/components/Chat.js` | Chat interface |
+| `frontend/src/components/Sidebar.js` | Common questions + settings |
+| `frontend/nginx.conf` | Reverse proxy configuration |

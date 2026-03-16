@@ -1,9 +1,21 @@
 """
-api.py - FastAPI endpoint for system status polling
+api.py - FastAPI endpoint for system status polling and chat
+Enhanced for React frontend integration
 """
+import os
+import time
+from typing import Optional, List, Dict, Any
+from pydantic import BaseModel
+
 import psutil
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+
+import main as main_module
+
+load_dotenv()
 
 try:
     import pynvml
@@ -70,13 +82,102 @@ def get_system_load():
     return data
 
 
-app = FastAPI()
+class ChatRequest(BaseModel):
+    message: str
+    session_history: Optional[List[Dict[str, Any]]] = []
+    recent_questions: Optional[List[str]] = []
+    user_id: Optional[str] = "anonymous"
+
+
+class ChatResponse(BaseModel):
+    is_statement: bool
+    acknowledgement: Optional[str] = None
+    answer: Optional[str] = None
+    sources: Optional[List[Dict[str, Any]]] = []
+    model_used: Optional[str] = None
+    latency_ms: Optional[int] = None
+    used_sql: Optional[bool] = False
+    metadata: Optional[Dict[str, Any]] = {}
+
+
+app = FastAPI(title="DVA Assistant API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/api/system-status")
 async def system_status():
     """Return system status as JSON."""
     return get_system_load()
+
+
+@app.get("/api/common-questions")
+async def common_questions():
+    """Return common veteran questions grouped by category."""
+    try:
+        questions = main_module.get_common_questions()
+        return questions
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/knowledge-stats")
+async def knowledge_stats():
+    """Return knowledge base statistics."""
+    try:
+        stats = main_module.get_page_stats()
+        return stats
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest):
+    """Process a chat message and return the response."""
+    try:
+        prepared = main_module.prepare_rag_context(
+            request.message,
+            user_id=request.user_id or "anonymous",
+            session_history=request.session_history,
+            recent_questions=request.recent_questions or []
+        )
+        
+        if prepared.get("is_statement"):
+            return ChatResponse(
+                is_statement=True,
+                acknowledgement=prepared.get("acknowledgement", "Acknowledged."),
+            )
+        
+        answer, sources, latency_ms, model = main_module.generate_answer(prepared, request.message)
+        
+        return ChatResponse(
+            is_statement=False,
+            answer=answer,
+            sources=sources,
+            model_used=model,
+            latency_ms=latency_ms,
+            used_sql=prepared.get("used_sql", False),
+            metadata={
+                "model_used": model,
+                "latency_ms": latency_ms,
+                "used_sql": prepared.get("used_sql", False),
+            }
+        )
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/health")
+async def health():
+    """Health check endpoint."""
+    return {"status": "healthy"}
 
 
 if __name__ == "__main__":
