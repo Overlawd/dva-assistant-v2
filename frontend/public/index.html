@@ -6,7 +6,6 @@
     <title>DVA Assistant</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        
         :root {
             --primary: #1e40af;
             --primary-light: #3b82f6;
@@ -15,204 +14,65 @@
             --border: #e2e8f0;
             --text: #1e293b;
             --text-muted: #64748b;
-            --safe: #22c55e;
-            --caution: #eab308;
-            --warning: #f97316;
-            --critical: #ef4444;
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
-            color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+        .header { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; padding: 1rem 2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
         .header h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
         .header p { font-size: 0.875rem; opacity: 0.9; }
-        
-        .main-container {
-            display: flex;
-            height: calc(100vh - 80px);
-            max-width: 1600px;
-            margin: 0 auto;
-        }
-        
-        .chat-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-        
-        .sidebar {
-            width: 340px;
-            background: var(--white);
-            border-left: 1px solid var(--border);
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
-        }
-        
-        .chat-empty {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            text-align: center;
-            color: var(--text-muted);
-        }
-        
-        .chat-empty p:first-child {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.5rem;
-        }
-        
+        .main-container { display: flex; height: calc(100vh - 80px); max-width: 1600px; margin: 0 auto; }
+        .chat-container { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+        .sidebar { width: 340px; background: var(--white); border-left: 1px solid var(--border); overflow-y: auto; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 1rem; }
+        .chat-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; color: var(--text-muted); }
+        .chat-empty p:first-child { font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 0.5rem; }
         .message { margin-bottom: 1rem; display: flex; }
         .message-user { justify-content: flex-end; }
         .message-assistant { justify-content: flex-start; }
-        
-        .message-content {
-            max-width: 70%;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            word-wrap: break-word;
-        }
-        
-        .message-user .message-content {
-            background: var(--primary-light);
-            color: white;
-            border-bottom-right-radius: 4px;
-        }
-        
-        .message-assistant .message-content {
-            background: var(--white);
-            color: var(--text);
-            border: 1px solid var(--border);
-            border-bottom-left-radius: 4px;
-        }
-        
+        .message-content { max-width: 70%; padding: 0.75rem 1rem; border-radius: 12px; word-wrap: break-word; }
+        .message-user .message-content { background: var(--primary-light); color: white; border-bottom-right-radius: 4px; }
+        .message-assistant .message-content { background: var(--white); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
         .message-content p { margin: 0; line-height: 1.5; }
-        
         .message-sources { margin-top: 0.5rem; font-size: 0.75rem; }
         .message-sources summary { cursor: pointer; color: var(--primary-light); }
-        
         .sources-list { margin-top: 0.25rem; display: flex; flex-direction: column; gap: 0.25rem; }
         .sources-list a { text-decoration: none; }
         .sources-list a:hover { text-decoration: underline; }
-        
-        .message-meta {
-            margin-top: 0.5rem;
-            padding-top: 0.5rem;
-            border-top: 1px solid var(--border);
-            font-size: 0.7rem;
-            color: #94a3b8;
-            display: flex;
-            gap: 1rem;
-        }
-        
+        .message-meta { margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--border); font-size: 0.7rem; color: #94a3b8; display: flex; gap: 1rem; }
         .loading-indicator { color: var(--text-muted); font-style: italic; }
-        
-        .chat-input {
-            display: flex;
-            gap: 0.5rem;
-            padding: 1rem;
-            background: var(--white);
-            border-top: 1px solid var(--border);
-        }
-        
-        .chat-input input {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        
+        .chat-input { display: flex; gap: 0.5rem; padding: 1rem; background: var(--white); border-top: 1px solid var(--border); }
+        .chat-input input { flex: 1; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; }
         .chat-input input:focus { border-color: var(--primary-light); }
         .chat-input input:disabled { background: var(--bg); }
-        
-        .chat-input button {
-            padding: 0.75rem 1.5rem;
-            background: var(--primary-light);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        
+        .chat-input button { padding: 0.75rem 1.5rem; background: var(--primary-light); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
         .chat-input button:hover:not(:disabled) { background: #2563eb; }
         .chat-input button:disabled { background: #94a3b8; cursor: not-allowed; }
-        
         .system-status { padding: 1rem; border-bottom: 1px solid var(--border); }
         .system-status h3 { font-size: 1rem; margin-bottom: 0.75rem; color: var(--text); }
         .loading { color: var(--text-muted); font-size: 0.875rem; }
-        
         .load-bar-container { margin-bottom: 1rem; }
         .load-bar-label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem; }
         .load-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
-        .load-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s, background-color 0.3s; }
-        
+        .load-bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
         .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; margin-bottom: 0.75rem; }
         .metric { display: flex; flex-direction: column; padding: 0.5rem; background: var(--bg); border-radius: 6px; }
         .metric-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
         .metric-value { font-size: 1rem; font-weight: 600; color: var(--text); }
-        
-        .warnings { margin-bottom: 0.75rem; }
-        .warning-banner {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.5rem; background: #fef2f2; border: 1px solid #fecaca;
-            border-radius: 6px; font-size: 0.75rem; color: #dc2626;
-            margin-bottom: 0.25rem;
-        }
+        .warning-banner { display: flex; justify-content: space-between; padding: 0.5rem; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.75rem; color: #dc2626; margin-bottom: 0.25rem; }
         .warning-banner button { background: none; border: none; color: #dc2626; cursor: pointer; }
-        
         .update-note { font-size: 0.7rem; color: #94a3b8; text-align: center; }
-        
         .sidebar-section { margin-bottom: 0.5rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-        .section-header {
-            width: 100%; display: flex; justify-content: space-between; align-items: center;
-            padding: 0.75rem; background: var(--bg); border: none; font-size: 0.875rem;
-            font-weight: 500; color: var(--text); cursor: pointer;
-        }
+        .section-header { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: var(--bg); border: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; }
         .section-header:hover { background: #f1f5f9; }
         .section-header.expanded { background: var(--border); }
         .arrow { font-size: 0.7rem; color: var(--text-muted); }
         .section-content { padding: 0.75rem; background: var(--white); }
-        .section-content select { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; background: var(--white); cursor: pointer; }
-        
+        .section-content select { width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; cursor: pointer; }
         .stat-item { display: flex; align-items: center; gap: 0.5rem; padding: 0.375rem 0; font-size: 0.8rem; color: #475569; }
         .stat-item span:nth-child(2) { flex: 1; }
-        .stat-item span:nth-child(3) { font-weight: 500; color: var(--text); }
-        
-        .clear-btn { width: 100%; margin-top: 0.5rem; padding: 0.5rem; background: var(--critical); color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+        .stat-item span:nth-child(3) { font-weight: 500; }
+        .clear-btn { width: 100%; margin-top: 0.5rem; padding: 0.5rem; background: #ef4444; color: white; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
         .clear-btn:hover { background: #dc2626; }
-        
-        @media (max-width: 1024px) {
-            .main-container { flex-direction: column; height: auto; }
-            .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 400px; }
-        }
+        @media (max-width: 1024px) { .main-container { flex-direction: column; height: auto; } .sidebar { width: 100%; border-left: none; border-top: 1px solid var(--border); max-height: 400px; } }
     </style>
 </head>
 <body>
@@ -220,300 +80,132 @@
         <h1>🎖️ DVA Assistant</h1>
         <p>Ask questions about Australian veteran entitlements and benefits</p>
     </header>
-    
     <div class="main-container">
         <div class="chat-container">
             <div class="chat-messages" id="chatMessages">
-                <div class="chat-empty">
-                    <p>👋 Welcome to DVA Assistant!</p>
-                    <p>Ask me anything about veteran entitlements, compensation, or benefits under MRCA, DRCA, or VEA.</p>
-                </div>
+                <div class="chat-empty"><p>👋 Welcome to DVA Assistant!</p><p>Ask me anything about veteran entitlements.</p></div>
             </div>
-            
             <form class="chat-input" id="chatForm">
                 <input type="text" id="chatInput" placeholder="Ask about DVA entitlements..." autocomplete="off">
                 <button type="submit" id="sendBtn">Send</button>
             </form>
         </div>
-        
         <aside class="sidebar">
-            <div class="system-status" id="systemStatus">
-                <h3>📊 System Status</h3>
-                <p class="loading">Loading...</p>
-            </div>
-            
+            <div class="system-status" id="systemStatus"><h3>📊 System Status</h3><p class="loading">Loading...</p></div>
             <div class="sidebar-section">
-                <button class="section-header" onclick="toggleSection('questions')">
-                    <span>❓ Common Questions</span>
-                    <span class="arrow" id="arrow-questions">▶</span>
-                </button>
+                <button class="section-header" onclick="toggleSection('questions')"><span>❓ Common Questions</span><span class="arrow" id="arrow-questions">▶</span></button>
                 <div class="section-content" id="section-questions" style="display:none">
-                    <select id="faqSelect" onchange="selectQuestion(this.value)">
-                        <option value="">Loading questions...</option>
-                    </select>
+                    <select id="faqSelect" onchange="selectQuestion(this.value)"><option value="">Loading...</option></select>
                 </div>
             </div>
-            
             <div class="sidebar-section">
-                <button class="section-header" onclick="toggleSection('settings')">
-                    <span>⚙️ Settings</span>
-                    <span class="arrow" id="arrow-settings">▶</span>
-                </button>
+                <button class="section-header" onclick="toggleSection('settings')"><span>⚙️ Settings</span><span class="arrow" id="arrow-settings">▶</span></button>
                 <div class="section-content" id="section-settings" style="display:none">
-                    <div class="stat-item">
-                        <span>Recent Questions:</span>
-                        <span id="recentCount">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span>Session Context:</span>
-                        <span id="contextCount">0</span>
-                    </div>
+                    <div class="stat-item"><span>Recent:</span><span id="recentCount">0</span></div>
+                    <div class="stat-item"><span>Context:</span><span id="contextCount">0</span></div>
                     <button class="clear-btn" onclick="clearSession()">Clear Session</button>
                 </div>
             </div>
-            
             <div class="sidebar-section">
-                <button class="section-header" onclick="toggleSection('knowledge')">
-                    <span>📚 Knowledge Base</span>
-                    <span class="arrow" id="arrow-knowledge">▶</span>
-                </button>
-                <div class="section-content" id="section-knowledge" style="display:none">
-                    <div id="knowledgeStats">
-                        <p class="loading">Loading...</p>
-                    </div>
-                </div>
+                <button class="section-header" onclick="toggleSection('knowledge')"><span>📚 Knowledge Base</span><span class="arrow" id="arrow-knowledge">▶</span></button>
+                <div class="section-content" id="section-knowledge" style="display:none"><div id="knowledgeStats"><p class="loading">Loading...</p></div></div>
             </div>
         </aside>
     </div>
-    
     <script>
-        const API_BASE = '/api';
-        let messages = [];
-        let sessionHistory = [];
-        let recentQuestions = [];
-        let commonQuestions = [];
-        let dismissedWarnings = {};
+        const API = 'http://localhost:8502';
+        let messages = [], sessionHistory = [], recentQuestions = [], commonQuestions = [];
+        let statusData = null, statusReqInFlight = false;
         
-        // System Status polling - runs every 2 seconds
-        async function fetchSystemStatus() {
-            try {
-                const resp = await fetch(`${API_BASE}/system-status`);
-                const status = await resp.json();
-                renderSystemStatus(status);
-            } catch (e) {
-                console.error('Failed to fetch system status:', e);
-            }
+        function getLoadColor(l) { return l <= 50 ? '#22c55e' : l <= 70 ? '#eab308' : l <= 90 ? '#f97316' : '#ef4444'; }
+        
+        function renderSystemStatus(s) {
+            if (!s) return;
+            const lv = s.load || 0, lc = getLoadColor(lv), ws = (s.warnings || []).map(w => `<div class="warning-banner"><span>⚠️ ${w}</span><button onclick="this.parentElement.remove()">✕</button></div>`).join('');
+            let m = s.has_gpu 
+                ? `<div class="metrics-grid"><div class="metric"><span class="metric-label">GPU</span><span class="metric-value">${(s.gpu||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">VRAM</span><span class="metric-value">${(s.vram||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">Temp</span><span class="metric-value">${s.gpu_temp||0}°C</span></div><div class="metric"><span class="metric-label">Free</span><span class="metric-value">${(s.vram_free_gb||0).toFixed(1)}GB</span></div></div>`
+                : `<div class="metrics-grid"><div class="metric"><span class="metric-label">CPU</span><span class="metric-value">${(s.cpu||0).toFixed(0)}%</span></div><div class="metric"><span class="metric-label">Memory</span><span class="metric-value">${(s.memory||0).toFixed(0)}%</span></div></div>`;
+            document.getElementById('systemStatus').innerHTML = `<h3>📊 System Status</h3><div class="load-bar-container"><div class="load-bar-label"><span>Load</span><span>${lv.toFixed(0)}%</span></div><div class="load-bar"><div class="load-bar-fill" style="width:${lv}%;background:${lc}"></div></div></div>${m}${ws}<p class="update-note">🔄 Updates: ${new Date().toLocaleTimeString()}</p>`;
         }
         
-        function getLoadColor(load) {
-            if (load <= 50) return '#22c55e';
-            if (load <= 70) return '#eab308';
-            if (load <= 90) return '#f97316';
-            return '#ef4444';
+        function pollStatus() {
+            if (statusReqInFlight) return;
+            statusReqInFlight = true;
+            fetch(API + '/api/system-status', { cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => { if (d) { statusData = d; renderSystemStatus(d); }}).finally(() => { statusReqInFlight = false; });
         }
-        
-        function renderSystemStatus(status) {
-            if (!status) return;
-            
-            const loadVal = status.load || 0;
-            const loadColor = getLoadColor(loadVal);
-            const warnings = status.warnings || [];
-            
-            let warningsHtml = '';
-            warnings.forEach(w => {
-                if (!dismissedWarnings[w]) {
-                    warningsHtml += `<div class="warning-banner"><span>⚠️ ${w}</span><button onclick="dismissWarning('${w}')">✕</button></div>`;
-                }
-            });
-            
-            let metricsHtml = '';
-            if (status.has_gpu) {
-                metricsHtml = `
-                    <div class="metrics-grid">
-                        <div class="metric"><span class="metric-label">GPU</span><span class="metric-value">${(status.gpu||0).toFixed(0)}%</span></div>
-                        <div class="metric"><span class="metric-label">VRAM</span><span class="metric-value">${(status.vram||0).toFixed(0)}%</span></div>
-                        <div class="metric"><span class="metric-label">Temp</span><span class="metric-value">${status.gpu_temp||0}°C</span></div>
-                        <div class="metric"><span class="metric-label">Free</span><span class="metric-value">${(status.vram_free_gb||0).toFixed(1)}GB</span></div>
-                    </div>
-                `;
-            } else {
-                metricsHtml = `
-                    <div class="metrics-grid">
-                        <div class="metric"><span class="metric-label">CPU</span><span class="metric-value">${(status.cpu||0).toFixed(0)}%</span></div>
-                        <div class="metric"><span class="metric-label">Memory</span><span class="metric-value">${(status.memory||0).toFixed(0)}%</span></div>
-                    </div>
-                `;
-            }
-            
-            document.getElementById('systemStatus').innerHTML = `
-                <h3>📊 System Status</h3>
-                <div class="load-bar-container">
-                    <div class="load-bar-label"><span>Load</span><span>${loadVal.toFixed(0)}%</span></div>
-                    <div class="load-bar"><div class="load-bar-fill" style="width:${loadVal}%;background-color:${loadColor}"></div></div>
-                </div>
-                ${metricsHtml}
-                ${warningsHtml}
-                <p class="update-note">🔄 Updates every 2 seconds</p>
-            `;
-        }
-        
-        function dismissWarning(w) { dismissedWarnings[w] = true; fetchSystemStatus(); }
         
         async function fetchCommonQuestions() {
             try {
-                const resp = await fetch(`${API_BASE}/common-questions`);
-                const data = await resp.json();
+                const r = await fetch(API + '/api/common-questions');
+                const d = await r.json();
                 commonQuestions = [];
-                Object.values(data).forEach(arr => commonQuestions.push(...arr.slice(0, 3)));
-                
-                const select = document.getElementById('faqSelect');
-                select.innerHTML = '<option value="">Select a question...</option>';
-                commonQuestions.forEach(q => {
-                    select.innerHTML += `<option value="${q}">${q}</option>`;
-                });
+                Object.values(d).forEach(a => commonQuestions.push(...a.slice(0, 3)));
+                document.getElementById('faqSelect').innerHTML = '<option value="">Select a question...</option>' + commonQuestions.map(q => `<option value="${q}">${q}</option>`).join('');
             } catch (e) { console.error(e); }
         }
         
         async function fetchKnowledgeStats() {
             try {
-                const resp = await fetch(`${API_BASE}/knowledge-stats`);
-                const data = await resp.json();
-                const colors = {'DVA': '#1e40af', 'CLIK': '#7c3aed', 'Legislation': '#059669', 'default': '#666'};
-                let html = '';
-                Object.entries(data).forEach(([source, count]) => {
-                    html += `<div class="stat-item"><span style="color:${colors[source]||colors.default}">●</span><span>${source}:</span><span>${count}</span></div>`;
-                });
-                document.getElementById('knowledgeStats').innerHTML = html || '<p class="loading">No data indexed</p>';
-            } catch (e) { document.getElementById('knowledgeStats').innerHTML = '<p class="loading">Failed to load</p>'; }
+                const r = await fetch(API + '/api/knowledge-stats');
+                const d = await r.json();
+                const c = {'DVA': '#1e40af', 'CLIK': '#7c3aed', 'Legislation': '#059669', 'default': '#666'};
+                document.getElementById('knowledgeStats').innerHTML = Object.entries(d).length ? Object.entries(d).map(([s,n]) => `<div class="stat-item"><span style="color:${c[s]||c.default}">●</span><span>${s}:</span><span>${n}</span></div>`).join('') : '<p class="loading">No data</p>';
+            } catch (e) { document.getElementById('knowledgeStats').innerHTML = '<p class="loading">Failed</p>'; }
         }
         
         function toggleSection(id) {
-            const content = document.getElementById(`section-${id}`);
-            const arrow = document.getElementById(`arrow-${id}`);
-            const header = document.querySelector(`#section-${id}`?.previousElementSibling);
-            
-            if (content.style.display === 'none') {
-                content.style.display = 'block';
-                arrow.textContent = '▼';
-                if (header) header.classList.add('expanded');
-            } else {
-                content.style.display = 'none';
-                arrow.textContent = '▶';
-                if (header) header.classList.remove('expanded');
-            }
+            const c = document.getElementById('section-' + id), a = document.getElementById('arrow-' + id), h = c.previousElementSibling;
+            c.style.display = c.style.display === 'none' ? 'block' : 'none';
+            a.textContent = c.style.display === 'none' ? '▶' : '▼';
+            if (h) h.classList.toggle('expanded', c.style.display !== 'none');
         }
         
-        function selectQuestion(q) {
-            if (q) {
-                document.getElementById('chatInput').value = q;
-                document.getElementById('faqSelect').value = '';
-            }
-        }
+        function selectQuestion(q) { if (q) { document.getElementById('chatInput').value = q; document.getElementById('faqSelect').value = ''; } }
+        function updateStats() { document.getElementById('recentCount').textContent = recentQuestions.length; document.getElementById('contextCount').textContent = sessionHistory.length; }
+        function clearSession() { messages = []; sessionHistory = []; recentQuestions = []; renderMessages(); updateStats(); }
         
-        function updateStats() {
-            document.getElementById('recentCount').textContent = recentQuestions.length;
-            document.getElementById('contextCount').textContent = sessionHistory.length;
-        }
-        
-        function clearSession() {
-            messages = [];
-            sessionHistory = [];
-            recentQuestions = [];
-            renderMessages();
-            updateStats();
+        function renderMessages() {
+            const c = document.getElementById('chatMessages');
+            if (!messages.length) { c.innerHTML = '<div class="chat-empty"><p>👋 Welcome to DVA Assistant!</p><p>Ask me anything about veteran entitlements.</p></div>'; return; }
+            c.innerHTML = messages.map(m => {
+                let src = '', meta = '';
+                if (m.role === 'assistant' && m.sources?.length) src = `<div class="message-sources"><details><summary>📋 Sources (${m.sources.length})</summary><div class="sources-list">${m.sources.map((s,i) => `<a href="${s.url}" target="_blank">[${i+1}] ${s.title}</a>`).join('<br>')}</div></details></div>`;
+                if (m.role === 'assistant' && m.metadata) { const p = []; if (m.metadata.model_used) p.push(`Model: ${m.metadata.model_used}`); if (m.metadata.latency) p.push(`Latency: ${m.metadata.latency}`); if (p.length) meta = `<div class="message-meta">${p.join(' | ')}</div>`; }
+                return `<div class="message message-${m.role}"><div class="message-content"><p>${m.content}</p>${src}${meta}</div></div>`;
+            }).join('');
+            c.scrollTop = c.scrollHeight;
         }
         
         async function sendMessage(text) {
-            const chatMessages = document.getElementById('chatMessages');
-            const input = document.getElementById('chatInput');
-            const btn = document.getElementById('sendBtn');
-            
+            const i = document.getElementById('chatInput'), b = document.getElementById('sendBtn');
             if (!text.trim()) return;
-            
             messages.push({ role: 'user', content: text });
-            recentQuestions.push(text);
-            if (recentQuestions.length > 100) recentQuestions = recentQuestions.slice(-100);
+            recentQuestions.push(text.slice(-100));
             renderMessages();
-            
-            input.value = '';
-            input.disabled = true;
-            btn.disabled = true;
-            
+            i.value = ''; i.disabled = b.disabled = true;
             messages.push({ role: 'assistant', content: '🤔 Thinking...', sources: [], metadata: {} });
             renderMessages();
-            
+            pollStatus();
             try {
-                const resp = await fetch(`${API_BASE}/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: text, session_history: sessionHistory, recent_questions: recentQuestions })
-                });
-                const data = await resp.json();
-                
+                const r = await fetch(API + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: text, session_history: sessionHistory, recent_questions: recentQuestions }) });
+                if (!r.ok) throw new Error('API ' + r.status);
+                const d = await r.json();
                 messages.pop();
-                
-                if (data.is_statement) {
-                    sessionHistory.push({ content: text, input_type: 'statement' });
-                    messages.push({ role: 'assistant', content: data.acknowledgement, sources: [], metadata: { is_statement: true } });
-                } else {
-                    messages.push({ role: 'assistant', content: data.answer, sources: data.sources||[], metadata: data.metadata||{} });
-                }
-            } catch (e) {
-                messages.pop();
-                messages.push({ role: 'assistant', content: `Error: ${e.message}`, sources: [], metadata: { error: true } });
-            }
-            
-            input.disabled = false;
-            btn.disabled = false;
-            updateStats();
-            renderMessages();
-            input.focus();
+                if (d.is_statement) { sessionHistory.push({ content: text, input_type: 'statement' }); messages.push({ role: 'assistant', content: d.acknowledgement, sources: [], metadata: {} }); }
+                else messages.push({ role: 'assistant', content: d.answer, sources: d.sources||[], metadata: d.metadata||{} });
+            } catch (e) { messages.pop(); messages.push({ role: 'assistant', content: 'Error: ' + e.message, sources: [], metadata: {} }); }
+            i.disabled = b.disabled = false;
+            updateStats(); renderMessages(); pollStatus(); i.focus();
         }
         
-        function renderMessages() {
-            const container = document.getElementById('chatMessages');
-            if (messages.length === 0) {
-                container.innerHTML = '<div class="chat-empty"><p>👋 Welcome to DVA Assistant!</p><p>Ask me anything about veteran entitlements, compensation, or benefits under MRCA, DRCA, or VEA.</p></div>';
-                return;
-            }
-            
-            let html = '';
-            messages.forEach(msg => {
-                let sourcesHtml = '';
-                if (msg.role === 'assistant' && msg.sources && msg.sources.length > 0) {
-                    const srcList = msg.sources.map((s, i) => `<a href="${s.url}" target="_blank" style="color:#3b82f6">[${i+1}] ${s.title}</a>`).join('<br>');
-                    sourcesHtml = `<div class="message-sources"><details><summary>📋 Sources (${msg.sources.length})</summary><div class="sources-list">${srcList}</div></details></div>`;
-                }
-                
-                let metaHtml = '';
-                if (msg.role === 'assistant' && msg.metadata && Object.keys(msg.metadata).length > 0) {
-                    const parts = [];
-                    if (msg.metadata.model_used) parts.push(`Model: ${msg.metadata.model_used}`);
-                    if (msg.metadata.latency) parts.push(`Latency: ${msg.metadata.latency}`);
-                    if (msg.metadata.used_sql) parts.push('SQL: Yes');
-                    if (parts.length) metaHtml = `<div class="message-meta">${parts.join('<span>')}</div>`;
-                }
-                
-                html += `<div class="message message-${msg.role}"><div class="message-content"><p>${msg.content}</p>${sourcesHtml}${metaHtml}</div></div>`;
-            });
-            
-            container.innerHTML = html;
-            container.scrollTop = container.scrollHeight;
-        }
+        document.getElementById('chatForm').addEventListener('submit', e => { e.preventDefault(); sendMessage(document.getElementById('chatInput').value); });
         
-        document.getElementById('chatForm').addEventListener('submit', e => {
-            e.preventDefault();
-            sendMessage(document.getElementById('chatInput').value);
-        });
-        
-        // Initialize
-        fetchSystemStatus();
+        // Start polling
+        pollStatus();
         fetchCommonQuestions();
         fetchKnowledgeStats();
         updateStats();
-        
-        // Poll system status every 2 seconds
-        setInterval(fetchSystemStatus, 2000);
+        setInterval(pollStatus, 3000);
     </script>
 </body>
 </html>
