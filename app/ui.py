@@ -65,7 +65,12 @@ def get_system_load():
 
 
 def render_system_status():
-    """Render system status in a tab."""
+    """Render system status in a tab with auto-refresh."""
+    from streamlit_autorefresh import st_autorefresh
+    
+    # Auto-refresh every 2 seconds - only affects this tab
+    st_autorefresh(interval=2000, key="system_status_refresh")
+    
     sys_load = get_system_load()
     load_val = sys_load.get("load", 0)
     has_gpu = sys_load.get("has_gpu", False)
