@@ -58,7 +58,7 @@ You should see 5-6 containers running:
 - dva-web
 - dva-api (for System Status polling)
 - dva-scraper
-- dva-scheduler (optional - for scheduled scraping)
+- dva-scheduler (automatic monthly scraping)
 
 ---
 

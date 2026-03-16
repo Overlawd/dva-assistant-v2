@@ -124,13 +124,16 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      OFELIA_INTERVAL: 0 0 2 1 * *  # Monthly at 2 AM
+      OFELIA_JOB_EXECUTOR: docker
+      OFELIA_JOB_DOCKER_CONTAINER: dva-scraper
     networks:
       - dva_network
     labels:
       ofelia.job-run: scraper-schedule
-      ofelia.job-run.command: "python scraper.py 200 --force"
+      ofelia.job-run.command: "python /app/scraper.py 200 --force"
       ofelia.job-run.schedule: "0 2 1 * *"
+      ofelia.job-run.timeout: 7200s
+      ofelia.job-run.save-logs: "true"
 
 networks:
   dva_network:

@@ -100,7 +100,7 @@ graph TD
 | `dva-web` | `dva-assistant-web` | Streamlit UI + RAG pipeline |
 | `dva-api` | `dva-assistant-api` | FastAPI for System Status polling |
 | `dva-scraper` | `dva-assistant-scraper` | Multi-source web crawler |
-| `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled scrape jobs (runs monthly) |
+| `dva-scheduler` | `mcuadros/ofelia:0.3.10` | Scheduled monthly scrape jobs |
 
 ---
 
@@ -129,6 +129,7 @@ graph TD
 | Change-detection scraping | SHA-256 hash skips unchanged pages |
 | Freshness skip | 7-day check before re-scraping |
 | Legislation currency | /asmade rewritten to /latest |
+| **Monthly scheduled scraping** | Auto-scrapes 200 pages on 1st of each month at 2 AM |
 
 ---
 
@@ -271,6 +272,50 @@ dva_wizard_v3/
 | `LLM_CTX` | Context window | 8192 |
 
 ---
+
+## Scheduled Scraping
+
+The `dva-scheduler` container runs automatic monthly scrapes using [Ofelia](https://github.com/mcuadros/ofelia):
+
+| Setting | Value |
+|---------|-------|
+| Schedule | Monthly on the 1st at 2:00 AM |
+| Command | `python scraper.py 200 --force` |
+| Pages | 200 (ignores 7-day freshness check) |
+| Container | dva-scraper |
+
+### How It Works
+
+1. Ofelia runs inside the `dva-scheduler` container
+2. At 2:00 AM on the 1st of each month, it executes the scraper
+3. The `--force` flag bypasses the 7-day freshness check
+4. Logs are saved automatically
+
+### Viewing Scheduler Logs
+
+```bash
+# View scheduler logs
+docker logs dva-scheduler
+
+# View when jobs last ran
+docker logs dva-scheduler | grep "Job"
+```
+
+### Manual Trigger
+
+To trigger a scrape manually:
+
+```bash
+docker exec dva-scraper python scraper.py 200 --force
+```
+
+### Disable Scheduler
+
+If you don't want automatic scrapes, remove the `scheduler` service from docker-compose.yml or simply don't start it:
+
+```bash
+docker compose up -d ollama db web api scraper
+```
 
 ## Hardware-Adaptive Models
 

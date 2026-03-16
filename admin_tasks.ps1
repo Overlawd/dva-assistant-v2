@@ -1,4 +1,4 @@
-# admin_tasks.ps1 - DVA Assistant Admin Console
+# admin_tasks.ps1 - DVA Wizard v3.0 Admin Console
 # Windows PowerShell script for managing the stack
 
 param(

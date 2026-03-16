@@ -56,7 +56,16 @@ Does the data management back up process actually back up everything except from
 
 ## DVA-SCHEDULER
 
-What is dva-scheduler and why is not NOT running?  When does it run and when should the container status of it not running matter?  If not required remove it from all code, docker and documentation. I belive it was originally to initiate scheduled backups.  See backup section prior to implementing changes or making a decision.
+RESOLVED (v3.0):
+
+- Scheduler is properly configured in docker-compose.yml
+- Runs automatic monthly scrapes (200 pages) on the 1st of each month at 2:00 AM
+- Uses Ofelia to execute `python scraper.py 200 --force` inside the scraper container
+- Logs are saved automatically
+- Properly documented in README.md
+- Can be disabled by removing the scheduler service from docker-compose.yml
+
+Manual trigger: `docker exec dva-scraper python scraper.py 200 --force`
 
 ## User Seed Submission via GUI
 
