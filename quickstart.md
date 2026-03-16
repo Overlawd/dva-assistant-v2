@@ -31,10 +31,15 @@ That's it! The default settings work for most setups.
 
 ## Step 3: Set Up Database
 
+> **Note:** The database initialization script is already in place. If this is a fresh setup, ensure the initdb folder exists:
+
 ```powershell
-New-Item -ItemType Directory -Path ".\initdb" -Force
-Copy-Item ".\app\init.sql" ".\initdb\init.sql"
+New-Item -ItemType Directory -Path ".\initdb" -Force -ItemType Directory
+# The init.sql file should already be present from the repository
+dir .\initdb
 ```
+
+If `initdb/init.sql` is missing, copy it from a backup or the original source.
 
 ---
 
