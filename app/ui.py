@@ -315,16 +315,13 @@ def main():
     st.title("🎖️ DVA Assistant")
     st.caption("Ask questions about Australian veteran entitlements and benefits")
     
-    # Create tabs
-    tab_chat, tab_status, tab_faq, tab_settings = st.tabs([
-        "💬 Chat", 
-        "📊 System Status", 
-        "❓ Common Questions",
-        "⚙️ Settings"
-    ])
+    # Create column layout: main chat area + sidebar panels
+    col_main, col_sidebar = st.columns([3, 1], gap="medium")
     
-    # === TAB 1: CHAT ===
-    with tab_chat:
+    # === MAIN AREA: CHAT ===
+    with col_main:
+        st.markdown("### 💬 Chat")
+        
         # Handle pending questions
         if st.session_state.get('pending_question'):
             question = st.session_state.pending_question
@@ -339,17 +336,19 @@ def main():
         if prompt := st.chat_input("Ask about DVA entitlements..."):
             process_question(prompt)
     
-    # === TAB 2: SYSTEM STATUS ===
-    with tab_status:
-        render_system_status()
-    
-    # === TAB 3: COMMON QUESTIONS ===
-    with tab_faq:
-        render_common_questions()
-    
-    # === TAB 4: SETTINGS ===
-    with tab_settings:
-        render_settings()
+    # === SIDEBAR PANELS: System Status, Common Questions, Settings ===
+    with col_sidebar:
+        # Panel 1: System Status (auto-refreshing)
+        with st.expander("📊 System Status", expanded=True):
+            render_system_status()
+        
+        # Panel 2: Common Questions
+        with st.expander("❓ Common Questions"):
+            render_common_questions()
+        
+        # Panel 3: Settings
+        with st.expander("⚙️ Settings"):
+            render_settings()
 
 
 if __name__ == "__main__":
