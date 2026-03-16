@@ -95,6 +95,10 @@ def init_session_state():
         "messages": [],
         "session_history": [],
         "pending_question": None,
+        "recent_questions": [],
+        "last_response": None,
+        "awaiting_repeat_confirmation": False,
+        "generating": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -328,17 +332,14 @@ def render_sources(sources: List[dict]):
 def process_question(prompt: str):
     """Process a question and store in session history."""
     
-    # Check for exact duplicate question FIRST (before repeat confirmation)
-    is_duplicate = prompt.strip() in st.session_state.recent_questions
+    prompt_stripped = prompt.strip()
     
-    # Check if user is confirming to repeat last answer
+    # Check if user is confirming to Repeat last answer
     if st.session_state.awaiting_repeat_confirmation:
-        prompt_lower = prompt.lower().strip()
+        prompt_lower = prompt_stripped.lower()
         if prompt_lower in ["yes", "y", "yeah", "yep", "sure", "ok", "please"]:
             # Repeat the last response
             if st.session_state.last_response:
-                with st.chat_message("assistant"):
-                    st.markdown(st.session_state.last_response["content"])
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": st.session_state.last_response["content"],
@@ -348,10 +349,14 @@ def process_question(prompt: str):
             st.session_state.awaiting_repeat_confirmation = False
             st.rerun()
         else:
-            # User said no or asked something else - clear flag but also check if it's a duplicate
+            # User said something else - clear flag
             st.session_state.awaiting_repeat_confirmation = False
     
-    # Handle duplicate question (now that we've cleared repeat confirmation)
+    # Check for exact duplicate question
+    recent_qs = st.session_state.get('recent_questions', [])
+    is_duplicate = prompt_stripped in recent_qs
+    
+    # Handle duplicate question
     if is_duplicate:
         duplicate_msg = "You've asked me that this session. If you'd like me to say it again, just say yes, otherwise I'll await your next question or clarification."
         
@@ -360,104 +365,83 @@ def process_question(prompt: str):
             "role": "user",
             "content": prompt,
         })
-        with st.chat_message("user"):
-            st.markdown(prompt)
         
-        with st.chat_message("assistant"):
-            st.markdown(duplicate_msg)
-        
+        # Add assistant response
         st.session_state.messages.append({
             "role": "assistant",
             "content": duplicate_msg,
             "sources": [],
             "metadata": {},
         })
+        
         st.session_state.awaiting_repeat_confirmation = True
         st.rerun()
+        return
     
-    # Add to recent questions (before processing to track it)
-    st.session_state.recent_questions.append(prompt.strip())
-    # Keep only last 100 questions for context
-    if len(st.session_state.recent_questions) > 100:
-        st.session_state.recent_questions = st.session_state.recent_questions[-100:]
-    
-    # Always add user message to chat
+    # Normal processing - add user message first
     st.session_state.messages.append({
         "role": "user",
         "content": prompt,
     })
     
-    # Show user message in chat
-    with st.chat_message("user"):
-        st.markdown(prompt)
+    # Add to recent questions after confirming it's not a duplicate
+    st.session_state.recent_questions.append(prompt_stripped)
+    if len(st.session_state.recent_questions) > 100:
+        st.session_state.recent_questions = st.session_state.recent_questions[-100:]
     
-    # Normal processing
     st.session_state.generating = True
     
     context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
     
-    with st.chat_message("assistant"):
-        with st.spinner("🤔 Thinking..."):
-            prepared = main_module.prepare_rag_context(
-                prompt, 
-                session_history=st.session_state.session_history,
-                recent_questions=st.session_state.recent_questions
-            )
-            
-            if prepared.get("is_statement"):
-                response = prepared.get("acknowledgement", "Acknowledged.")
-                st.markdown(response)
-                st.session_state.session_history.append({
-                    "content": prompt,
-                    "input_type": "statement",
-                })
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response,
-                    "sources": [],
-                    "metadata": {"is_statement": True},
-                })
-                st.session_state.generating = False
-                st.rerun()
-            
-            answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
-            metadata = {
-                "model_used": model,
-                "latency": f"{latency_ms}ms",
-                "used_sql": prepared.get("used_sql", False),
-            }
+    # Process the question
+    with st.spinner("🤔 Thinking..."):
+        prepared = main_module.prepare_rag_context(
+            prompt, 
+            session_history=st.session_state.session_history,
+            recent_questions=st.session_state.recent_questions
+        )
         
-        st.session_state.generating = False
+        if prepared.get("is_statement"):
+            response = prepared.get("acknowledgement", "Acknowledged.")
+            st.session_state.session_history.append({
+                "content": prompt,
+                "input_type": "statement",
+            })
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response,
+                "sources": [],
+                "metadata": {"is_statement": True},
+            })
+            st.session_state.generating = False
+            return
         
-        st.markdown(answer)
-        
-        if sources or metadata:
-            with st.expander("📋 Details", expanded=False):
-                if sources:
-                    render_sources(sources)
-                
-                if metadata:
-                    st.write("---")
-                    if metadata.get("model_used"):
-                        st.write(f"**Model:** {metadata['model_used']}")
-                    if metadata.get("latency"):
-                        st.write(f"**Latency:** {metadata['latency']}")
-                    if metadata.get("used_sql"):
-                        st.write("**SQL Used:** Yes")
-        
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": answer,
-            "sources": sources,
-            "metadata": metadata,
-        })
-        
-        # Store last response for repeat functionality
-        st.session_state.last_response = {
-            "content": answer,
-            "sources": sources,
-            "metadata": metadata,
+        answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
+        metadata = {
+            "model_used": model,
+            "latency": f"{latency_ms}ms",
+            "used_sql": prepared.get("used_sql", False),
         }
+    
+    st.session_state.generating = False
+    
+    # Store and display response
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": answer,
+        "sources": sources,
+        "metadata": metadata,
+    })
+    
+    # Store last response for repeat functionality
+    st.session_state.last_response = {
+        "content": answer,
+        "sources": sources,
+        "metadata": metadata,
+    }
+    
+    # Force rerun to ensure messages are displayed
+    st.rerun()
 
 
 def check_vram_warnings():
