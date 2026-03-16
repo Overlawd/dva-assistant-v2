@@ -64,23 +64,29 @@ function Show-MainMenu {
     Write-Host "Running services: $($running -join ', ')" -ForegroundColor $(if ($running.Count -ge 4) { "Green" } else { "Yellow" })
     Write-Host ""
     
-    Write-Host "[1] Restart Application" -ForegroundColor Yellow
-    Write-Host "[2] GPU Management" -ForegroundColor Yellow
-    Write-Host "[3] Manage Models" -ForegroundColor Yellow
+    Write-Host "[1] Start / Restart Application" -ForegroundColor Yellow
+    Write-Host "[2] GPU Settings" -ForegroundColor Yellow
+    Write-Host "[3] Model Management" -ForegroundColor Yellow
     Write-Host "[4] Data Management" -ForegroundColor Yellow
-    Write-Host "[5] Diagnostic" -ForegroundColor Yellow
+    Write-Host "[5] Diagnostics" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "[Q] Quit" -ForegroundColor Red
     Write-Host ""
 }
 
-function Restart-Application {
-    Write-Header "Restart Application"
+function Start-Restart-Application {
+    Write-Header "Start / Restart Application"
     
-    Write-Host "[1] Full restart (stop + start)" -ForegroundColor Yellow
-    Write-Host "[2] Rolling restart (no downtime)" -ForegroundColor Yellow
-    Write-Host "[3] Restart specific service" -ForegroundColor Yellow
-    Write-Host "[4] Rebuild and restart" -ForegroundColor Yellow
+    $running = Test-ContainersRunning
+    Write-Host "Current status: $($running.Count) containers running" -ForegroundColor $(if ($running.Count -ge 4) { "Green" } else { "Yellow" })
+    Write-Host ""
+    
+    Write-Host "[1] Start Application" -ForegroundColor Green
+    Write-Host "[2] Restart All (stop + start)" -ForegroundColor Yellow
+    Write-Host "[3] Rolling restart (no downtime)" -ForegroundColor Yellow
+    Write-Host "[4] Restart specific service" -ForegroundColor Yellow
+    Write-Host "[5] Rebuild and restart" -ForegroundColor Yellow
+    Write-Host "[6] Stop Application" -ForegroundColor Red
     Write-Host "[B] Back to main menu" -ForegroundColor Gray
     Write-Host ""
     
@@ -88,6 +94,13 @@ function Restart-Application {
     
     switch ($choice) {
         "1" {
+            Write-Host "Starting all containers..." -ForegroundColor Green
+            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
+            Write-Host "Done! Waiting for services to be healthy..." -ForegroundColor Green
+            Start-Sleep 10
+            docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
+        }
+        "2" {
             Write-Host "Stopping all containers..." -ForegroundColor Yellow
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
             Write-Host "Starting all containers..." -ForegroundColor Yellow
@@ -96,21 +109,26 @@ function Restart-Application {
             Start-Sleep 10
             docker ps --filter "name=dva-" --format "table {{.Names}}\t{{.Status}}"
         }
-        "2" {
+        "3" {
             Write-Host "Performing rolling restart..." -ForegroundColor Yellow
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart
             Write-Host "Done!" -ForegroundColor Green
         }
-        "3" {
+        "4" {
             Write-Host "Available services: ollama, db, web, api, scraper, scheduler" -ForegroundColor Cyan
             $svc = Read-Host "Enter service name"
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") restart $svc
         }
-        "4" {
+        "5" {
             Write-Host "Rebuilding containers..." -ForegroundColor Yellow
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") build
             docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") up -d
             Write-Host "Done!" -ForegroundColor Green
+        }
+        "6" {
+            Write-Host "Stopping all containers..." -ForegroundColor Red
+            docker compose -f (Join-Path $PROJECT_ROOT "docker-compose.yml") down
+            Write-Host "All containers stopped." -ForegroundColor Yellow
         }
     }
     
@@ -120,7 +138,7 @@ function Restart-Application {
     }
 }
 
-function Show-GPUMenu {
+function Show-GPUSettings {
     $backToMain = $false
     
     while (-not $backToMain) {
@@ -795,8 +813,8 @@ if (-not $NoMenu) {
         switch -regex ($menuInput) {
             "^[1-5]$" {
                 switch ($menuInput) {
-                    "1" { Restart-Application }
-                    "2" { Show-GPUMenu }
+                    "1" { Start-Restart-Application }
+                    "2" { Show-GPUSettings }
                     "3" { Show-ModelMenu }
                     "4" { Show-DataMenu }
                     "5" { Show-Diagnostic }

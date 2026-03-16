@@ -132,11 +132,11 @@ On Windows, run the admin console:
 ```
 
 The admin console provides menu-driven access to:
-- Restart Application
-- GPU Management (stats, tests, toggle)
-- Manage Models (list, pull, delete, switch)
-- Data Management (backup/restore, utilities)
-- Diagnostic (status, logs)
+- Start / Restart Application
+- GPU Settings
+- Model Management
+- Data Management
+- Diagnostics
 
 ---
 
