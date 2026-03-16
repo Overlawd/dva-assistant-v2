@@ -1,16 +1,19 @@
 """
 ui.py — Streamlit UI for DVA Assistant
 
-Sidebar with tabs: Chat, System Status, Common Questions, Settings
+Single-page dashboard with native Streamlit sidebar:
+- Chat in main area
+- System Status always visible at top of sidebar
+- Common Questions and Settings in collapsible sidebar sections
 """
 
 import os
 import time
+import threading
 from datetime import datetime
 from typing import List, Optional
 
 import streamlit as st
-import psutil
 import requests
 from dotenv import load_dotenv
 
@@ -40,6 +43,12 @@ if 'last_response' not in st.session_state:
 if 'awaiting_repeat_confirmation' not in st.session_state:
     st.session_state.awaiting_repeat_confirmation = False
 
+if 'processing_question' not in st.session_state:
+    st.session_state.processing_question = False
+
+if 'current_question' not in st.session_state:
+    st.session_state.current_question = None
+
 
 load_dotenv()
 
@@ -56,33 +65,20 @@ COLORS = {
 
 def get_system_load():
     """Get current system load metrics."""
+    # Try API first (fast)
     try:
-        resp = requests.get("http://dva-api:8502/api/system-status", timeout=1)
-        return resp.json()
+        resp = requests.get("http://dva-api:8502/api/system-status", timeout=0.3)
+        if resp.ok:
+            return resp.json()
     except Exception:
         pass
     
-    # Fallback - return minimal status
-    return {
-        "load": 0,
-        "cpu": 0,
-        "memory": 0,
-        "disk": 0,
-        "network": 0,
-        "has_gpu": False,
-        "warnings": [],
-    }
+    # Return default if API unavailable - avoid fallback delays
+    return {"load": 0, "cpu": 0, "memory": 0, "disk": 0, "network": 0, "has_gpu": False, "warnings": []}
 
 
-def render_system_status():
-    """Render system status in a panel."""
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.markdown("**System Status**")
-    with col2:
-        if st.button("🔄", key="refresh_status", help="Refresh status"):
-            st.rerun()
-    
+def render_system_status_sidebar():
+    """Render system status in the sidebar - always visible at top."""
     sys_load = get_system_load()
     load_val = sys_load.get("load", 0)
     has_gpu = sys_load.get("has_gpu", False)
@@ -96,34 +92,34 @@ def render_system_status():
     else:
         load_color = "#ef4444"
     
-    st.markdown("**System Load**")
-    st.progress(load_val / 100, text=f"{load_val:.0f}%")
+    st.markdown("### 📊 System Status")
+    st.progress(load_val / 100, text=f"Load: {load_val:.0f}%")
     
     if has_gpu:
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns(2)
         col1.metric("GPU", f"{sys_load.get('gpu', 0):.0f}%")
         col2.metric("VRAM", f"{sys_load.get('vram', 0):.0f}%")
-        col3.metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
-        col4.metric("Net", f"{sys_load.get('network', 0):.0f}%")
-        st.caption(f"VRAM: {sys_load.get('vram_free_gb', 0):.1f}GB free")
+        col1, col2 = st.columns(2)
+        col1.metric("Temp", f"{sys_load.get('gpu_temp', 0)}°C")
+        col2.metric("Free", f"{sys_load.get('vram_free_gb', 0):.1f}GB")
     else:
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2 = st.columns(2)
         col1.metric("CPU", f"{sys_load.get('cpu', 0):.0f}%")
-        col2.metric("Mem", f"{sys_load.get('memory', 0):.0f}%")
-        col3.metric("Disk", f"{sys_load.get('disk', 0):.0f}%")
-        col4.metric("Net", f"{sys_load.get('network', 0):.1f}%")
+        col2.metric("Memory", f"{sys_load.get('memory', 0):.0f}%")
     
     warnings = sys_load.get("warnings", [])
     if warnings:
         for w in warnings:
             st.warning(w)
+    
+    st.caption("💡 Updates when you interact")
 
 
-def render_common_questions():
-    """Render common questions in a tab."""
+def render_common_questions_sidebar():
+    """Render common questions in the sidebar."""
     common_questions = main_module.get_common_questions()
     if not common_questions:
-        st.write("No common questions available")
+        st.write("No questions available")
         return
     
     all_questions = []
@@ -132,18 +128,15 @@ def render_common_questions():
             all_questions.append(q)
     
     options = ["Select a question..."] + all_questions
-    selected = st.selectbox("❓ Common Questions", options, key="faq_select")
+    selected = st.selectbox("Choose:", options, key="faq_select")
     
     if selected and selected != "Select a question...":
         st.session_state.pending_question = selected
         st.rerun()
 
 
-def render_settings():
-    """Render settings and session info in a tab."""
-    st.markdown("### Session Info")
-    
-    # Recent questions
+def render_settings_sidebar():
+    """Render settings in the sidebar."""
     recent = st.session_state.get('recent_questions', [])
     st.write(f"**Recent Questions:** {len(recent)}")
     if recent:
@@ -151,7 +144,6 @@ def render_settings():
             for q in recent[-10:]:
                 st.caption(f"• {q}")
     
-    # Session history
     history = st.session_state.get('session_history', [])
     st.write(f"**Session Context:** {len(history)} statements")
     
@@ -163,13 +155,13 @@ def render_settings():
         st.rerun()
     
     st.markdown("---")
-    st.markdown("### Knowledge Base")
+    st.markdown("**Knowledge Base**")
     stats = main_module.get_page_stats()
     for source, count in sorted(stats.items()):
         color = COLORS.get(source, "#666")
-        st.markdown(f'<span style="color:{color}">●</span> **{source}**: {count}', unsafe_allow_html=True)
+        st.markdown(f'<span style="color:{color}">●</span> {source}: {count}', unsafe_allow_html=True)
     
-    st.caption(f"Last updated: {main_module.get_last_updated()}")
+    st.caption(f"Updated: {main_module.get_last_updated()}")
 
 
 def render_message_item(msg: dict):
@@ -221,7 +213,6 @@ def process_question(prompt: str):
                     "metadata": st.session_state.last_response.get("metadata", {}),
                 })
             st.session_state.awaiting_repeat_confirmation = False
-            st.rerun()
             return
         else:
             st.session_state.awaiting_repeat_confirmation = False
@@ -245,10 +236,9 @@ def process_question(prompt: str):
         })
         
         st.session_state.awaiting_repeat_confirmation = True
-        st.rerun()
         return
     
-    # Add user message
+    # Add user message FIRST (so it shows immediately)
     st.session_state.messages.append({
         "role": "user",
         "content": prompt,
@@ -258,6 +248,16 @@ def process_question(prompt: str):
     st.session_state.recent_questions.append(prompt_stripped)
     if len(st.session_state.recent_questions) > 100:
         st.session_state.recent_questions = st.session_state.recent_questions[-100:]
+    
+    # Store question for processing and rerun to show user message first
+    st.session_state.current_question = prompt
+    st.session_state.processing_question = True
+    st.rerun()
+
+
+def process_question_continue():
+    """Continue processing a question after user message is shown."""
+    prompt = st.session_state.current_question
     
     # Process the question
     try:
@@ -282,6 +282,8 @@ def process_question(prompt: str):
                     "sources": [],
                     "metadata": {"is_statement": True},
                 })
+                st.session_state.processing_question = False
+                st.session_state.current_question = None
                 st.rerun()
                 return
             
@@ -298,6 +300,8 @@ def process_question(prompt: str):
             "sources": [],
             "metadata": {"error": True},
         })
+        st.session_state.processing_question = False
+        st.session_state.current_question = None
         st.rerun()
         return
     
@@ -315,6 +319,8 @@ def process_question(prompt: str):
         "metadata": metadata,
     }
     
+    st.session_state.processing_question = False
+    st.session_state.current_question = None
     st.rerun()
 
 
@@ -335,40 +341,47 @@ def main():
     st.title("🎖️ DVA Assistant")
     st.caption("Ask questions about Australian veteran entitlements and benefits")
     
-    # Create column layout: main chat area + sidebar panels
-    col_main, col_sidebar = st.columns([3, 1], gap="medium")
+    # === SIDEBAR ===
+    with st.sidebar:
+        st.markdown("## DVA Assistant")
+        
+        # System Status - always visible at top
+        render_system_status_sidebar()
+        
+        st.markdown("---")
+        
+        # Common Questions - collapsible
+        with st.expander("❓ Common Questions", expanded=False):
+            render_common_questions_sidebar()
+        
+        # Settings - collapsible
+        with st.expander("⚙️ Settings", expanded=False):
+            render_settings_sidebar()
     
-    # === MAIN AREA: CHAT ===
-    with col_main:
-        st.markdown("### 💬 Chat")
-        
-        # Handle pending questions
-        if st.session_state.get('pending_question'):
-            question = st.session_state.pending_question
-            st.session_state.pending_question = None
-            process_question(question)
-        
-        # Render messages
-        for msg in st.session_state.messages:
-            render_message_item(msg)
-        
-        # Chat input
-        if prompt := st.chat_input("Ask about DVA entitlements..."):
-            process_question(prompt)
+    # === MAIN AREA: Chat ===
+    # Handle pending questions
+    if st.session_state.get('pending_question'):
+        question = st.session_state.pending_question
+        st.session_state.pending_question = None
+        process_question(question)
     
-    # === SIDEBAR PANELS: System Status, Common Questions, Settings ===
-    with col_sidebar:
-        # Panel 1: System Status (auto-refreshing)
-        with st.expander("📊 System Status", expanded=True):
-            render_system_status()
-        
-        # Panel 2: Common Questions
-        with st.expander("❓ Common Questions"):
-            render_common_questions()
-        
-        # Panel 3: Settings
-        with st.expander("⚙️ Settings"):
-            render_settings()
+    # Create placeholder for spinner
+    spinner_placeholder = st.empty()
+    
+    # Render messages
+    for msg in st.session_state.messages:
+        render_message_item(msg)
+    
+    # If processing, show spinner
+    if st.session_state.get('processing_question', False):
+        spinner_placeholder.markdown("🤔 *Thinking...*")
+        process_question_continue()
+    else:
+        spinner_placeholder.empty()
+    
+    # Chat input
+    if prompt := st.chat_input("Ask about DVA entitlements..."):
+        process_question(prompt)
 
 
 if __name__ == "__main__":

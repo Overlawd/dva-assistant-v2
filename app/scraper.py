@@ -36,6 +36,24 @@ SEED_URLS = [
     {"url": "https://www.reddit.com/r/DVAAustralia", "label": "Reddit Community", "type": "REDDIT"},
     {"url": "https://www.openarms.gov.au/", "label": "Open Arms", "type": "SUPPORT"},
     {"url": "https://www.veteransfirstconsulting.com/", "label": "Veterans First Consulting", "type": "SUPPORT"},
+    # Additional veteran support sites
+    {"url": "https://soldieron.org.au/", "label": "Soldier On", "type": "SUPPORT"},
+    {"url": "https://www.veteransemployment.gov.au/", "label": "Veterans Employment", "type": "SUPPORT"},
+    {"url": "https://veteranssa.sa.gov.au/", "label": "Veterans SA", "type": "SUPPORT"},
+    {"url": "https://www.rslaustralia.org/veteran-support", "label": "RSL Australia", "type": "SUPPORT"},
+    {"url": "https://www.victorianveteranscouncil.org.au/", "label": "Victorian Veterans Council", "type": "SUPPORT"},
+    {"url": "https://www.navy.gov.au/navy-people/veteran-support", "label": "Navy Veterans", "type": "SUPPORT"},
+    {"url": "https://mindconnectionsshs.com.au/", "label": "Mind Connections", "type": "SUPPORT"},
+    {"url": "https://www.legacy.com.au/", "label": "Legacy Australia", "type": "SUPPORT"},
+    {"url": "https://pva.org.au/", "label": "Paralyzed Veterans Australia", "type": "SUPPORT"},
+    # Government veteran pages
+    {"url": "https://www.army.gov.au/community/members-veterans/veterans", "label": "Army Veterans", "type": "DVA_GOV"},
+    {"url": "https://www.servicesaustralia.gov.au/support-for-veterans", "label": "Services Australia Veterans", "type": "DVA_GOV"},
+    {"url": "https://www.veterans.nsw.gov.au/", "label": "Veterans NSW", "type": "DVA_GOV"},
+    {"url": "https://www.veterans.nsw.gov.au/education/how-to-research-a-veteran/", "label": "Veterans NSW Education", "type": "DVA_GOV"},
+    {"url": "https://www.veterans.nsw.gov.au/support/information-services/", "label": "Veterans NSW Support", "type": "DVA_GOV"},
+    {"url": "https://www.healthdirect.gov.au/partners/department-of-veterans-affairs", "label": "HealthDirect DVA", "type": "DVA_GOV"},
+    {"url": "https://www.defence.gov.au/adf-members-families/wellbeing/support-services/veterans-ex-serving-members", "label": "Defence Veterans", "type": "DVA_GOV"},
 ]
 
 CHUNK_SIZE = 2000
