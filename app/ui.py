@@ -59,17 +59,29 @@ def get_system_load():
     try:
         resp = requests.get("http://dva-api:8502/api/system-status", timeout=1)
         return resp.json()
-    except:
-        hw_info = main_module.get_hardware_info()
-        return hw_info
+    except Exception:
+        pass
+    
+    # Fallback - return minimal status
+    return {
+        "load": 0,
+        "cpu": 0,
+        "memory": 0,
+        "disk": 0,
+        "network": 0,
+        "has_gpu": False,
+        "warnings": [],
+    }
 
 
 def render_system_status():
-    """Render system status in a tab with auto-refresh."""
-    from streamlit_autorefresh import st_autorefresh
-    
-    # Auto-refresh every 2 seconds - only affects this tab
-    st_autorefresh(interval=2000, key="system_status_refresh")
+    """Render system status in a panel."""
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.markdown("**System Status**")
+    with col2:
+        if st.button("🔄", key="refresh_status", help="Refresh status"):
+            st.rerun()
     
     sys_load = get_system_load()
     load_val = sys_load.get("load", 0)
@@ -84,7 +96,7 @@ def render_system_status():
     else:
         load_color = "#ef4444"
     
-    st.markdown("### System Load")
+    st.markdown("**System Load**")
     st.progress(load_val / 100, text=f"{load_val:.0f}%")
     
     if has_gpu:
@@ -105,8 +117,6 @@ def render_system_status():
     if warnings:
         for w in warnings:
             st.warning(w)
-    
-    st.caption("💡 Stats update when you interact with the page")
 
 
 def render_common_questions():
@@ -250,36 +260,46 @@ def process_question(prompt: str):
         st.session_state.recent_questions = st.session_state.recent_questions[-100:]
     
     # Process the question
-    with st.spinner("🤔 Thinking..."):
-        context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
-        
-        prepared = main_module.prepare_rag_context(
-            prompt, 
-            session_history=st.session_state.session_history,
-            recent_questions=st.session_state.recent_questions
-        )
-        
-        if prepared.get("is_statement"):
-            response = prepared.get("acknowledgement", "Acknowledged.")
-            st.session_state.session_history.append({
-                "content": prompt,
-                "input_type": "statement",
-            })
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": response,
-                "sources": [],
-                "metadata": {"is_statement": True},
-            })
-            st.rerun()
-            return
-        
-        answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
-        metadata = {
-            "model_used": model,
-            "latency": f"{latency_ms}ms",
-            "used_sql": prepared.get("used_sql", False),
-        }
+    try:
+        with st.spinner("🤔 Thinking..."):
+            context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
+            
+            prepared = main_module.prepare_rag_context(
+                prompt, 
+                session_history=st.session_state.session_history,
+                recent_questions=st.session_state.recent_questions
+            )
+            
+            if prepared.get("is_statement"):
+                response = prepared.get("acknowledgement", "Acknowledged.")
+                st.session_state.session_history.append({
+                    "content": prompt,
+                    "input_type": "statement",
+                })
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": response,
+                    "sources": [],
+                    "metadata": {"is_statement": True},
+                })
+                st.rerun()
+                return
+            
+            answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
+            metadata = {
+                "model_used": model,
+                "latency": f"{latency_ms}ms",
+                "used_sql": prepared.get("used_sql", False),
+            }
+    except Exception as e:
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": f"Error processing your question: {str(e)}",
+            "sources": [],
+            "metadata": {"error": True},
+        })
+        st.rerun()
+        return
     
     # Store response
     st.session_state.messages.append({
