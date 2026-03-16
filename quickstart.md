@@ -91,12 +91,26 @@ The System Status updates automatically when you interact with the page.
 The assistant remembers context within your session:
 - **Statements** (e.g., "I served in the Army") are stored and used in future responses
 - **Questions** and answers are tracked for context continuity
+- Last 100 questions are used to improve response relevance
 
 Try this:
 1. First, tell it something: "I served in the Army as a rifleman"
 2. Then ask: "What compensation am I entitled to?"
 
 The assistant will use your service context to provide relevant answers.
+
+### Duplicate Question Detection
+
+If you ask the same question twice:
+1. The question displays in chat
+2. System asks: "You just asked me that. If you'd like me to say it again, just say yes..."
+3. Say "yes" to repeat the answer without re-inference
+
+This saves time and GPU resources.
+
+### Browser Refresh Warning
+
+A warning appears when refreshing the browser to prevent accidental data loss.
 
 ---
 

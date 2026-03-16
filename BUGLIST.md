@@ -34,19 +34,19 @@ For example - see the references are listed in long and short form.  do one only
 
 ```
 
-## Reapeat exact question wastes time and resource reinferring
+### RE-EMBEDDING and MODEL CHANGE
 
-Dont re-infer the response if the question was exactly the same as before, instead respond "You just asked me that, if you would like to me to say again, just say yes, otherwise I'll await."  Then if yes, repeat the last response without reinferring, if no, just wait for next question / statement.
+Does the data need to be re-embedded when the model changes.  IF so make this automatic after warning the user before hand that it will take time.  Get them to confirm their acceptance whenever a re-embed is required.  
 
 -------
 
 ## DVA-SCHEDULER
 
-What is dva-scheduler and why is not NOT running?  When does it run and when should the container status of it not running matter?  If not required remove it from all code, docker and documentation.
+What is dva-scheduler and why is not NOT running?  When does it run and when should the container status of it not running matter?  If not required remove it from all code, docker and documentation. I belive it was originally to initiate scheduled backups.  See backup section below prior to implementing changes or making a decision.
 
 ## BACKUP
 
-Does the data management back up process actually back up everything except from github?  If not it needs to.  Also make the back up location path something user set.
+Does the data management back up process actually back up everything except from github?  If not it needs to.  Also make the back up location path something user set.  Update admin_tasks.ps1, makes sure it works entirely prior to contiuing with any scheduling as valid.
 
 ## User Seed Submission via GUI
 

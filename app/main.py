@@ -987,10 +987,15 @@ def flag_response(log_id: int, reason: str = "") -> bool:
 # RAG context preparation
 # ---------------------------------------------------------------------------
 
-def prepare_rag_context(question: str, user_id: str = "anonymous", session_history: Optional[list] = None) -> dict:
+def prepare_rag_context(question: str, user_id: str = "anonymous", session_history: Optional[list] = None, recent_questions: Optional[list] = None) -> dict:
     classification = classify_input(question)
     faq_match = is_common_faq_question(question)
-
+    
+    # Build recent questions context for better retrieval
+    recent_context = ""
+    if recent_questions and len(recent_questions) > 0:
+        recent_context = "RECENT QUESTIONS IN THIS SESSION:\n" + "\n".join(f"- {q}" for q in recent_questions[-10:])
+    
     if classification["type"] == "statement":
         return {
             "is_statement": True,
@@ -1028,7 +1033,13 @@ def prepare_rag_context(question: str, user_id: str = "anonymous", session_histo
     except Exception as e:
         print(f"⚠️  SQL generation/execution failed: {e}")
 
-    vector_hits = semantic_search(question, top_k=10)
+    # Build enhanced query using recent questions for better retrieval
+    enhanced_query = question
+    if recent_questions and len(recent_questions) > 0:
+        recent_topics = recent_questions[-5:]  # Use last 5 questions for context
+        enhanced_query = f"{question} | Related to: {' | '.join(recent_topics)}"
+    
+    vector_hits = semantic_search(enhanced_query, top_k=10)
 
     if vector_hits:
         vector_hits = rerank_chunks(question, vector_hits)
@@ -1067,6 +1078,10 @@ def prepare_rag_context(question: str, user_id: str = "anonymous", session_histo
         system_prompt_parts.extend([veteran_context, ""])
         system_prompt_parts.append("IMPORTANT: Use the veteran-provided context above to personalize your answer to their specific situation.")
 
+    if recent_context:
+        system_prompt_parts.extend([recent_context, ""])
+        system_prompt_parts.append("NOTE: The user has asked similar questions in this session - use this context to provide consistent and related answers.")
+
     if past_context:
         system_prompt_parts.extend([past_context, ""])
 
@@ -1085,6 +1100,7 @@ def prepare_rag_context(question: str, user_id: str = "anonymous", session_histo
         "classification": classification,
         "faq_match": faq_match,
         "veteran_context": veteran_context,
+        "recent_context": recent_context,
         "past_context": past_context,
         "structured_data": structured_data,
         "used_sql": used_sql,

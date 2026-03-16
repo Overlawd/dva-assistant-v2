@@ -26,6 +26,9 @@ The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) sy
 - **SQL specialist** - codellama:7b generates more accurate database queries
 - **Common veteran questions** - Dropdown in sidebar for quick access
 - **Session memory** - Remembers veteran's context (service, conditions) within session
+- **Duplicate question detection** - Avoids re-inference for repeated questions
+- **Recent questions context** - Uses last 100 questions to improve response relevance
+- **Browser refresh warning** - Warns user that session data will be lost on refresh
 
 The system combines two retrieval strategies:
 - **Text-to-SQL** for structured queries (Acts, service categories, standards of proof)
@@ -283,6 +286,45 @@ dva-assistant/
 ## System Load Monitoring
 
 The UI sidebar displays a **System Load (%)** bar with dynamic color coding. The System Status section updates automatically when you interact with the page (send messages, click expanders, etc.).
+
+---
+
+## Session Features
+
+### Duplicate Question Detection
+
+When you ask the exact same question twice within a session:
+
+1. The question is displayed in the chat (as normal)
+2. The system responds: "You just asked me that. If you'd like me to say it again, just say yes, otherwise I'll await your next question."
+3. If you respond with "yes/yep/sure", the previous answer is repeated without re-inference
+4. If you ask anything else, the conversation continues normally
+
+**Benefits:**
+- Saves GPU resources by avoiding duplicate inference
+- Faster response for repeated questions
+- Tracks last 100 questions in session
+
+### Recent Questions Context
+
+The system maintains context from your last 100 questions to improve response quality:
+
+- Questions are used to enhance semantic search (appends recent topics to query)
+- Context is included in system prompt for better relevance
+- Follow-up questions (e.g., "what about X?" after asking about Y) get better results
+
+### Browser Refresh Warning
+
+When you attempt to refresh or close the browser tab, a warning appears: "Warning: Refreshing this page will lose your conversation history. Continue?"
+
+This helps prevent accidental loss of session data.
+
+### Chat History
+
+- Messages display in chronological order (question followed by answer)
+- Chat history is maintained throughout the session
+- Previous responses can be scrolled and reviewed
+- Note: Refreshing the browser clears all session data
 
 | Load Range | Color | Hex |
 |-------------|-------|-----|
