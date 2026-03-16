@@ -328,6 +328,8 @@ def render_sidebar():
         st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
         
+        st.markdown("---")
+        
         session_context = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
         if session_context:
             with st.expander(f"📝 Your Context ({len(session_context)} items)"):
@@ -337,9 +339,10 @@ def render_sidebar():
                     st.session_state.session_history = []
                     st.rerun()
         
-        st.write("")
+        st.markdown("---")
         
         st.subheader("📊 System Status")
+        st.write("")
         
         sys_load = get_system_load()
         load_val = sys_load.get("load", 0)
@@ -403,6 +406,21 @@ def render_sidebar():
             else:
                 cols2[0].markdown(f"<div style='font-size:0.75rem; text-align:center;'>Network<br/><b>{sys_load.get('network', 0):.1f}%</b></div>", unsafe_allow_html=True)
         
+        st.write("")
+        
+        hw_info = main_module.get_hardware_info()
+        st.markdown(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
+        st.markdown(f"**VRAM:** {hw_info.get('vram_gb', 0)} GB ({hw_info.get('vram_free_gb', 0)} GB free)")
+        
+        models_info = main_module.get_available_models()
+        if models_info.get("status") == "connected":
+            installed = models_info.get("installed", [])
+            with st.expander(f"🔌 Models ({len(installed)} installed)"):
+                for m in installed:
+                    st.caption(f"• {m}")
+        
+        st.markdown("---")
+        
         common_questions = main_module.get_common_questions()
         if common_questions:
             with st.expander("❓ Common Questions"):
@@ -416,27 +434,7 @@ def render_sidebar():
                             st.rerun()
                     st.markdown("---")
         
-        hw_info = main_module.get_hardware_info()
-        st.write(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
-        st.write(f"**VRAM:** {hw_info.get('vram_gb', 0)} GB ({hw_info.get('vram_free_gb', 0)} GB free)")
-        
-        models_info = main_module.get_available_models()
-        if models_info.get("status") == "connected":
-            st.write(f"**Models Installed:** {len(models_info.get('installed', []))}")
-        
-        st.write("")
-        
-        st.subheader("🔧 Model Routing")
-        st.caption("Questions are automatically routed to optimal models")
-        
-        with st.expander("View Recommendations"):
-            rec = hw_info.get("recommendation", {})
-            st.write(f"**Chat:** {rec.get('chat', 'N/A')}")
-            st.write(f"**Reasoning:** {rec.get('reasoning', 'N/A')}")
-            st.write(f"**SQL:** {rec.get('sql', 'N/A')}")
-            st.write(f"**Embeddings:** {rec.get('embeddings', 'N/A')}")
-        
-        st.write("")
+        st.markdown("---")
         
         st.subheader("📚 Knowledge Base")
         stats = main_module.get_page_stats()
