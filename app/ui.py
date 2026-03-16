@@ -206,6 +206,8 @@ def render_system_status():
 
 def render_sidebar():
     """Render the sidebar with controls and info."""
+    check_vram_warnings()
+    
     with st.sidebar:
         st.title("🎖️ DVA Assistant")
         st.caption("Local RAG for Veteran Entitlements")
@@ -230,16 +232,15 @@ def render_sidebar():
         
         common_questions = main_module.get_common_questions()
         if common_questions:
-            with st.expander("❓ Common Questions"):
-                for cat_idx, (cat, questions) in enumerate(common_questions.items()):
-                    st.markdown(f"**{cat}**")
-                    for q_idx, q in enumerate(questions[:3]):
-                        btn_key = f"faq_{cat_idx}_{q_idx}"
-                        display_text = q[:47] + "..." if len(q) > 47 else q
-                        if st.button(display_text, key=btn_key):
-                            st.session_state.pending_question = q
-                            st.rerun()
-                    st.markdown("---")
+            all_questions = []
+            for cat, questions in common_questions.items():
+                for q in questions[:3]:
+                    all_questions.append(q)
+            
+            faq_key = "faq_select_" + str(len(all_questions))
+            selected = st.selectbox("❓ Common Questions", ["Select a question..."] + all_questions, key=faq_key)
+            if selected and selected != "Select a question...":
+                st.session_state.pending_question = selected
         
         models_info = main_module.get_available_models()
         if models_info.get("status") == "connected":
@@ -392,15 +393,14 @@ def check_vram_warnings():
             suggestion_text = " • ".join([f"`{s}`" for s in suggestions[:3]])
             warning_msg += f"\n\n**Try:** {suggestion_text}"
         
-        with st.sidebar:
-            with st.expander("⚠️ VRAM Warning", expanded=True):
-                st.markdown(warning_msg)
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("Dismiss", key="dismiss_vram_warning"):
-                        st.session_state.dismissed_warnings.add(warning_key)
-                        st.session_state.last_warning_time[warning_key] = time.time()
-                        st.rerun()
+        with st.expander("⚠️ VRAM Warning", expanded=True):
+            st.markdown(warning_msg)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Dismiss", key="dismiss_vram_warning"):
+                    st.session_state.dismissed_warnings.add(warning_key)
+                    st.session_state.last_warning_time[warning_key] = time.time()
+                    st.rerun()
 
 
 def main():
@@ -410,7 +410,7 @@ def main():
     st.title("🎖️ DVA Assistant")
     st.caption("Ask questions about Australian veteran entitlements and benefits")
     
-    check_vram_warnings()
+    render_sidebar()
     
     if st.session_state.pending_question:
         question = st.session_state.pending_question
@@ -422,8 +422,6 @@ def main():
     
     if prompt := st.chat_input("Ask about DVA entitlements..."):
         process_question(prompt)
-    
-    render_sidebar()
 
 
 if __name__ == "__main__":
