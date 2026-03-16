@@ -400,7 +400,7 @@ function Show-Diagnostic {
     while (-not $backToMain) {
         Write-Header "Diagnostic"
         
-        $services = @("ollama", "db", "web", "api", "scraper", "scheduler")
+        $services = @("ollama", "db", "web", "api", "scraper")
         $allHealthy = $true
         
         Write-Host "Container Status:" -ForegroundColor Cyan
@@ -413,6 +413,17 @@ function Show-Diagnostic {
                 Write-Host "  $name : NOT RUNNING" -ForegroundColor Red
                 $allHealthy = $false
             }
+        }
+        
+        # Scheduler - special handling (expected to not run most of the time)
+        $schedulerName = Get-ContainerName -Service "scheduler"
+        $schedulerStatus = docker ps --filter "name=$schedulerName" --format "{{.Status}}"
+        if ($schedulerStatus) {
+            Write-Host "  $schedulerName : $schedulerStatus" -ForegroundColor Green
+        } else {
+            # Get next scheduled run time
+            $nextRun = "Monthly on 1st at 2:00 AM"
+            Write-Host "  $schedulerName : NOT RUNNING (Scheduled: $nextRun)" -ForegroundColor Yellow
         }
         
         Write-Host ""
@@ -444,12 +455,15 @@ function Show-Diagnostic {
         
         Write-Host ""
         if ($allHealthy) {
-            Write-Host "All systems healthy!" -ForegroundColor Green
+            Write-Host "All core systems healthy!" -ForegroundColor Green
         } else {
             Write-Host "Some issues detected. Run option 1 to restart." -ForegroundColor Yellow
         }
         
         Write-Host ""
+        Write-Host "Note: Scheduler runs monthly on the 1st at 2:00 AM" -ForegroundColor Gray
+        Write-Host ""
+        
         Write-Host "[V] View Logs" -ForegroundColor Yellow
         Write-Host "[B] Back to main menu" -ForegroundColor Gray
         Write-Host ""
@@ -468,6 +482,7 @@ function Show-Diagnostic {
             Write-Host "[3] Scraper container" -ForegroundColor Yellow
             Write-Host "[4] Database" -ForegroundColor Yellow
             Write-Host "[5] Ollama" -ForegroundColor Yellow
+            Write-Host "[6] Scheduler" -ForegroundColor Yellow
             Write-Host "[B] Back" -ForegroundColor Gray
             Write-Host ""
             
@@ -484,6 +499,7 @@ function Show-Diagnostic {
                 "3" { Get-ContainerName -Service "scraper" }
                 "4" { Get-ContainerName -Service "db" }
                 "5" { Get-ContainerName -Service "ollama" }
+                "6" { Get-ContainerName -Service "scheduler" }
                 default { $null }
             }
             
