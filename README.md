@@ -20,11 +20,11 @@ The **ADF Veteran's DVA Assistant** is a Retrieval-Augmented Generation (RAG) sy
 
 - **Multi-model routing** - Automatically selects optimal model based on query complexity
 - **Hardware detection** - Auto-detects GPU and recommends optimal models
-- **Dynamic System Load** - Real-time weighted load calculation with auto-refresh
+- **Dynamic System Load** - Real-time metrics in sidebar, updates on page interaction
 - **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
 - **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
 - **SQL specialist** - codellama:7b generates more accurate database queries
-- **Common veteran questions** - Top FAQ integrated into search and sidebar
+- **Common veteran questions** - Dropdown in sidebar for quick access
 - **Session memory** - Remembers veteran's context (service, conditions) within session
 
 The system combines two retrieval strategies:
@@ -282,7 +282,7 @@ dva-assistant/
 
 ## System Load Monitoring
 
-The UI sidebar displays a **System Load (%)** bar with dynamic color coding. The System Status section includes a **Refresh** button to update metrics on demand. Stats also automatically refresh when you interact with the page (send a message, click buttons, etc.).
+The UI sidebar displays a **System Load (%)** bar with dynamic color coding. The System Status section updates automatically when you interact with the page (send messages, click expanders, etc.).
 
 | Load Range | Color | Hex |
 |-------------|-------|-----|
