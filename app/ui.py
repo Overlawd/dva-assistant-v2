@@ -270,8 +270,7 @@ def render_sidebar():
             
             # Trigger processing if new selection
             if selected and selected != "Select a question...":
-                if selected != st.session_state.get('last_processed_question'):
-                    st.session_state.pending_question = selected
+                st.session_state.pending_question = selected
         
         models_info = main_module.get_available_models()
         if models_info.get("status") == "connected":
@@ -334,12 +333,12 @@ def process_question(prompt: str):
     
     prompt_stripped = prompt.strip()
     
-    # Check if user is confirming to Repeat last answer
-    if st.session_state.awaiting_repeat_confirmation:
+    # Check if user is confirming to repeat last answer
+    if st.session_state.get('awaiting_repeat_confirmation', False):
         prompt_lower = prompt_stripped.lower()
         if prompt_lower in ["yes", "y", "yeah", "yep", "sure", "ok", "please"]:
             # Repeat the last response
-            if st.session_state.last_response:
+            if st.session_state.get('last_response'):
                 st.session_state.messages.append({
                     "role": "assistant",
                     "content": st.session_state.last_response["content"],
@@ -348,16 +347,15 @@ def process_question(prompt: str):
                 })
             st.session_state.awaiting_repeat_confirmation = False
             st.rerun()
+            return
         else:
-            # User said something else - clear flag
             st.session_state.awaiting_repeat_confirmation = False
     
     # Check for exact duplicate question
     recent_qs = st.session_state.get('recent_questions', [])
-    is_duplicate = prompt_stripped in recent_qs
     
     # Handle duplicate question
-    if is_duplicate:
+    if prompt_stripped in recent_qs:
         duplicate_msg = "You've asked me that this session. If you'd like me to say it again, just say yes, otherwise I'll await your next question or clarification."
         
         # Add user message
@@ -378,23 +376,21 @@ def process_question(prompt: str):
         st.rerun()
         return
     
-    # Normal processing - add user message first
+    # Add user message
     st.session_state.messages.append({
         "role": "user",
         "content": prompt,
     })
     
-    # Add to recent questions after confirming it's not a duplicate
+    # Add to recent questions
     st.session_state.recent_questions.append(prompt_stripped)
     if len(st.session_state.recent_questions) > 100:
         st.session_state.recent_questions = st.session_state.recent_questions[-100:]
     
-    st.session_state.generating = True
-    
-    context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
-    
     # Process the question
     with st.spinner("🤔 Thinking..."):
+        context_statements = [m["content"] for m in st.session_state.session_history if m.get("input_type") == "statement"]
+        
         prepared = main_module.prepare_rag_context(
             prompt, 
             session_history=st.session_state.session_history,
@@ -413,7 +409,7 @@ def process_question(prompt: str):
                 "sources": [],
                 "metadata": {"is_statement": True},
             })
-            st.session_state.generating = False
+            st.rerun()
             return
         
         answer, sources, latency_ms, model = main_module.generate_answer(prepared, prompt)
@@ -422,8 +418,6 @@ def process_question(prompt: str):
             "latency": f"{latency_ms}ms",
             "used_sql": prepared.get("used_sql", False),
         }
-    
-    st.session_state.generating = False
     
     # Store and display response
     st.session_state.messages.append({
@@ -440,7 +434,6 @@ def process_question(prompt: str):
         "metadata": metadata,
     }
     
-    # Force rerun to ensure messages are displayed
     st.rerun()
 
 
@@ -506,17 +499,19 @@ def main():
     
     render_sidebar()
     
-    if st.session_state.pending_question and st.session_state.pending_question != st.session_state.get('last_processed_question'):
+    # Handle pending questions (from Common Questions dropdown)
+    if st.session_state.get('pending_question'):
         question = st.session_state.pending_question
-        st.session_state.last_processed_question = question
         st.session_state.pending_question = None
-        process_question(question)
-        # Reset dropdown after processing completes
         st.session_state.faq_current_value = "Select a question..."
+        process_question(question)
+        return
     
+    # Render all messages
     for msg in st.session_state.messages:
         render_message_item(msg)
     
+    # Chat input
     if prompt := st.chat_input("Ask about DVA entitlements..."):
         process_question(prompt)
 

@@ -48,7 +48,6 @@ Does the data management back up process actually back up everything except from
 
 What is dva-scheduler and why is not NOT running?  When does it run and when should the container status of it not running matter?  If not required remove it from all code, docker and documentation. I belive it was originally to initiate scheduled backups.  See backup section prior to implementing changes or making a decision.
 
-
 ## User Seed Submission via GUI
 
 User add seed to scraper via gui has gone missing.
