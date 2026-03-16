@@ -1,4 +1,81 @@
-Update readme.md including all flowcharts with Mermaid, quickstart.md, logic_summary.md to be up to date, accurate and comprehensive.
+Version 3 has been a sideways project to get the chat, llm and system status all working together as they are now.  This cannot go backwards.
+
+Despite this, we need to re-implement all functions, features, scraping rational, seed ranking, improved response and query logic is implemented and all features implemented where valid and missing wihtout breaking any current working code:
+
+Features that were in version 1:
+
+
+* **Multi-source knowledge base** — CLIK, DVA.gov.au, legislation.gov.au, RMA, Reddit, and 14 support sites (~5,500+ pages)
+* **DVA AI page summary indexing** — automatically clicks the "Summarise this page" button on DVA/CLIK pages and indexes the AI-generated summary as a separate chunk for quick-answer retrieval
+* **Statement vs. question classification** — personal context (e.g. "I have PTSD") is acknowledged with a warm template response and stored as session context; no LLM call or DB writes are triggered
+* **Veteran context block** — statements from the current session are lifted into a dedicated prompt block so the LLM can personalise answers using "you"/"your" references
+* **Lexical + semantic re-ranking** — TF-IDF keyword score (0.35 weight) combined with cosine similarity (0.65 weight) reorders retrieved chunks so the highest-relevance content per trust level appears first in the context window
+* **DVA Acts priority boost** — MRCA, DRCA, and VEA content receives a within-bucket score boost so the three core Acts surface first among all federal legislation. MRCA has the highest boost as the primary Act for new claims from 1 July 2026 (v5.5)
+* **MRCA primacy guidance** — the LLM is instructed to lead with MRCA for new-claim answers and correctly distinguish between claims lodged before and after 1 July 2026 (v5.5)
+* **Expanded LLM context window** — 8,192 tokens (configurable via `LLM_CTX`); fits llama3:8b on a GTX 1060 6 GB with headroom
+* **Persistent conversation memory** — Q&A pairs stored in PostgreSQL; retrieved on similar future queries for cross-session consistency
+* **Conflict detection** — flags when authoritative (L1–L2) and community/provider (L4–L5) sources disagree
+* **Full audit log** — every query logged with sources used, latency, and user flag support
+* **Seed URL management** — sidebar-submitted URLs persist to the database and are included in every scheduled scrape run; seeds are soft-deleted (row kept for audit)
+* **Dead-page detection and retirement** — detects DVA CMS "Page not found" bodies served with HTTP 200; after 3 strikes, all scraped content for that URL is purged and the seed is deactivated
+* **On-demand URL indexing** — index any URL from the sidebar; parseable document formats (PDF, DOCX, DOC, PPTX, PPT) are downloaded and ingested automatically
+* **Document upload ingestion** — uploaded files are parsed and embedded with auto-detected trust level from domain
+* **Change-detection scraping** — SHA-256 hash comparison skips re-embedding unchanged pages, updating only `last_scraped` timestamp
+* **Freshness skip** — URLs scraped within 7 days are skipped unless `--force` is used
+* **Legislation currency enforcement** — `/asmade` URLs are rewritten to `/latest` at scrape time and normalised in the DB; prompts instruct the LLM to always cite the current compiled version
+* **Duplicate source card suppression** — source cards are deduplicated by both exact URL and by (title, source_type) so the same document indexed at multiple section URLs appears only once in the reference list
+* **Multi-conversation UI** — named conversation history with date grouping; sidebar toggle; TypingMind-inspired layout
+* **Auto-scroll with down arrow button** — unread badge, pulse ring, MutationObserver-driven auto-scroll on new content
+* **Cross-URL duplicate guard** — content with identical SHA-256 hash from a less-authoritative source is skipped if a more authoritative copy already exists
+* **CLIK round-robin DFS crawling** — per-seed sub-queues with round-robin scheduling ensure every CLIK section (MRCA manuals, policy library, reference library, SOP, claims procedures) receives proportional fetch budget rather than being starved by earlier seeds (v5.4)
+* **CLIK content extraction fix** — Drupal 9 content selectors now correctly isolate policy text from navigation chrome; `copy.deepcopy` prevents BS4 tree mutation that was silently corrupting every extraction (v5.4)
+* **Distinct source badge colours** — CLIK (green), DVA.gov.au (blue), Support (pink-purple) are visually distinguished in source cards, trust badges, and the sidebar pie chart (v5.4)
+
+
+Features version 2:
+- **Multi-model routing** - Automatically selects optimal model based on query complexity
+- **Hardware detection** - Auto-detects GPU and recommends optimal models
+- **Dynamic System Load** - Real-time metrics in sidebar, updates on page interaction
+- **Improved embeddings** - Support for mxbai-embed-large (1024-dim) 
+- **Context summarization** - qwen2.5:7b compresses context to fit more relevant content
+- **SQL specialist** - codellama:7b generates more accurate database queries
+- **Common veteran questions** - Dropdown in sidebar for quick access
+- **Session memory** - Remembers veteran's context (service, conditions) within session
+- **Duplicate question detection** - Avoids re-inference for repeated questions
+- **Recent questions context** - Uses last 100 questions to improve response relevance
+- **Browser refresh warning** - Warns user that session data will be lost on refresh
+
+The system combines two retrieval strategies:
+- **Text-to-SQL** for structured queries (Acts, service categories, standards of proof)
+- **Semantic vector search** (pgvector) for policy and knowledge
+
+A lexical + semantic **re-ranker** ensures the most relevant content per trust level appears first in the LLM context window.
+
+### Source Authority Tiers
+
+| Level | Source | Domain(s) | Notes |
+| --- | --- | --- | --- |
+| **L1** | Federal Legislation | legislation.gov.au, rma.gov.au | Binding law and Statements of Principles |
+| **L2** | CLIK Official | clik.dva.gov.au | Binding compensation policy interpretation |
+| **L3** | DVA.gov.au | dva.gov.au (non-CLIK) | Official DVA informational pages |
+| **L3** | Government Other | Other .gov.au | Non-DVA government sources |
+| **L4** | Service Providers | Non-gov domains | Advocacy and support organisations |
+| **L5** | Community | reddit.com/r/DVAAustralia | User posts — always verify against L1–L3 |
+
+---
+
+## ⚖️ DVA Legislation Hierarchy — MRCA Primacy from 1 July 2026
+
+| Act | Full Name | Relevance from 1 July 2026 |
+| --- | --- | --- |
+| **MRCA** | Military Rehabilitation and Compensation Act 2004 | **Primary Act** — all new compensation and rehabilitation claims |
+| **DRCA** | Safety, Rehabilitation and Compensation (Defence-related Claims) Act 1988 | Legacy claims lodged before 1 July 2026 |
+| **VEA** | Veterans' Entitlements Act 1986 | Legacy claims; pensions and income-support payments |
+
+The system applies MRCA priority through re-ranker boosts and LLM prompt instructions.
+
+-------
+
 
 ensure admin_tasks.ps1  still works entirely and no modifications are needed.
 
@@ -6,5 +83,11 @@ make sure backup routine in admin_tasks.ps1 is comprehensive
 
 implement a scraping menu at the top level giving various scarping options
 
-go back over readme.md version 1 and 2 and ensure all scraping, ranking, response and query logic is implemented.
+-------
 
+Update readme.md including all flowcharts with Mermaid, quickstart.md, logic_summary.md to be up to date, accurate and comprehensive.
+
+
+-------
+
+check the logic in the System Status pie chart. dont change any code beyond how the percentages are calculated and the colours.  remove network from the algorithm.  Check readme.md version 1 and 2 for clarity.
