@@ -40,6 +40,7 @@ class ModelManager:
         """
         info = {
             "vram_gb": 0,
+            "vram_free_gb": 0,
             "gpu_name": "CPU only",
             "cuda_available": False,
             "recommendation": self._get_recommendation(0),
@@ -47,7 +48,7 @@ class ModelManager:
         
         try:
             result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"],
+                ["nvidia-smi", "--query-gpu=memory.total,memory.free,name", "--format=csv,noheader,nounits"],
                 capture_output=True,
                 text=True,
                 timeout=10,
@@ -56,10 +57,12 @@ class ModelManager:
                 lines = result.stdout.strip().split("\n")
                 if lines:
                     parts = lines[0].split(",")
-                    if len(parts) >= 2:
+                    if len(parts) >= 3:
                         vram_mb = int(parts[0].strip())
+                        vram_free_mb = int(parts[1].strip())
                         info["vram_gb"] = round(vram_mb / 1024)
-                        info["gpu_name"] = parts[1].strip()
+                        info["vram_free_gb"] = round(vram_free_mb / 1024)
+                        info["gpu_name"] = parts[2].strip()
                         info["cuda_available"] = True
         except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
             pass

@@ -7,6 +7,7 @@ import json
 import math
 import os
 import re
+import subprocess
 import time
 from functools import lru_cache
 from typing import Generator, Optional
@@ -250,16 +251,56 @@ def classify_query_complexity(question: str) -> str:
 
 def get_routed_model(question: str) -> str:
     """
-    Route question to appropriate model based on complexity.
+    Route question to appropriate model based on complexity AND hardware availability.
     """
     complexity = classify_query_complexity(question)
     
+    # Check VRAM availability
+    vram_free_gb = _get_vram_free_gb()
+    
+    # Define model VRAM requirements (approximate)
+    model_vram = {
+        "qwen2.5:14b": 9.0,
+        "llama3.1:8b": 5.0,
+        "qwen2.5:7b": 4.8,
+        "codellama:7b": 4.0,
+    }
+    
+    # Hardware-aware routing
     if complexity == "complex":
-        return os.getenv("MODEL_COMPLEX", "qwen2.5:14b")
+        # For complex queries, try to use best model that fits
+        if vram_free_gb >= model_vram.get("qwen2.5:14b", 9.0):
+            return os.getenv("MODEL_COMPLEX", "qwen2.5:14b")
+        elif vram_free_gb >= model_vram.get("llama3.1:8b", 5.0):
+            return os.getenv("MODEL_NAME", "llama3.1:8b")
+        elif vram_free_gb >= model_vram.get("qwen2.5:7b", 4.8):
+            return os.getenv("SUMMARIZER_MODEL", "qwen2.5:7b")
+        else:
+            # Fallback to smallest available
+            return os.getenv("MODEL_NAME", "llama3.1:8b")
     elif complexity == "technical":
-        return os.getenv("SQL_MODEL", "codellama:7b")
+        if vram_free_gb >= model_vram.get("codellama:7b", 4.0):
+            return os.getenv("SQL_MODEL", "codellama:7b")
+        else:
+            return os.getenv("MODEL_NAME", "llama3.1:8b")
     else:
+        # Simple queries always use fast model
         return os.getenv("MODEL_NAME", "llama3.1:8b")
+
+
+def _get_vram_free_gb() -> float:
+    """Get available VRAM in GB. Returns 0 if unable to detect."""
+    try:
+        result = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            free_mb = float(result.stdout.strip().split('\n')[0])
+            return free_mb / 1024
+    except Exception:
+        pass
+    return 0.0
 
 
 # ---------------------------------------------------------------------------

@@ -418,7 +418,7 @@ def render_sidebar():
         
         hw_info = main_module.get_hardware_info()
         st.write(f"**GPU:** {hw_info.get('gpu_name', 'Unknown')}")
-        st.write(f"**VRAM:** {hw_info.get('vram_gb', 0)} GB")
+        st.write(f"**VRAM:** {hw_info.get('vram_gb', 0)} GB ({hw_info.get('vram_free_gb', 0)} GB free)")
         
         models_info = main_module.get_available_models()
         if models_info.get("status") == "connected":
