@@ -112,17 +112,14 @@
     var STATUS_API = 'http://localhost:8503/api';
     var worker = null;
     var lastStatus = null;
-    var workerPollCount = 0;
     
     // Initialize Web Worker for background status polling
     function initWorker() {
         try {
             worker = new Worker('/status-worker.js');
             worker.onmessage = function(e) {
-                workerPollCount++;
                 if (e.data && e.data.type === 'status') {
                     var data = e.data.data;
-                    // Always render - force update to see if it works
                     lastStatus = data;
                     renderStatus(data);
                 }
@@ -167,7 +164,7 @@
         var m = s.has_gpu 
             ? '<div class="metrics-grid"><div class="metric"><span class="metric-label">GPU</span><span class="metric-value">' + (s.gpu||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">VRAM</span><span class="metric-value">' + (s.vram||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">Temp</span><span class="metric-value">' + (s.gpu_temp||0) + '°C</span></div><div class="metric"><span class="metric-label">Free</span><span class="metric-value">' + (s.vram_free_gb||0).toFixed(1) + 'GB</span></div></div>'
             : '<div class="metrics-grid"><div class="metric"><span class="metric-label">CPU</span><span class="metric-value">' + (s.cpu||0).toFixed(0) + '%</span></div><div class="metric"><span class="metric-label">Memory</span><span class="metric-value">' + (s.memory||0).toFixed(0) + '%</span></div></div>';
-        content.innerHTML = '<div class="load-bar-container"><div class="load-bar-label"><span>Load</span><span>' + lv.toFixed(0) + '%</span></div><div class="load-bar"><div class="load-bar-fill" style="width:' + lv + '%;background:' + lc + '"></div></div></div>' + m + ws + '<p class="update-note">🔄 ' + new Date().toLocaleTimeString() + ' (polls:' + workerPollCount + ')</p>';
+        content.innerHTML = '<div class="load-bar-container"><div class="load-bar-label"><span>Load</span><span>' + lv.toFixed(0) + '%</span></div><div class="load-bar"><div class="load-bar-fill" style="width:' + lv + '%;background:' + lc + '"></div></div></div>' + m + ws + '<p class="update-note">🔄 ' + new Date().toLocaleTimeString() + '</p>';
     }
     
     // Initialize worker-based polling

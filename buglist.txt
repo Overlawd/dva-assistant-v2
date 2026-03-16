@@ -1,0 +1,10 @@
+Update readme.md including all flowcharts with Mermaid, quickstart.md, logic_summary.md to be up to date, accurate and comprehensive.
+
+ensure admin_tasks.ps1  still works entirely and no modifications are needed.
+
+make sure backup routine in admin_tasks.ps1 is comprehensive
+
+implement a scraping menu at the top level giving various scarping options
+
+go back over readme.md version 1 and 2 and ensure all scraping, ranking, response and query logic is implemented.
+
