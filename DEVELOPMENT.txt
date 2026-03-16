@@ -1,0 +1,20 @@
+High Priority
+#	Improvement	Description
+1	Vector Index Optimization	Implement HNSW index for faster similarity search at scale
+2	Incremental Embedding	Only embed new/changed content instead of full reembed
+3	Query Caching	Cache frequent queries to reduce LLM API calls
+4	Better Error Handling	Graceful degradation when Ollama models unavailable
+
+Medium Priority
+#	Improvement	Description
+5	Multi-user Support	User authentication and personalized history
+6	Citation Verification	Auto-verify links are still active
+7	Model Hot-swap	Switch models without container restart
+8	Export Chat History	Download conversation as PDF/Markdown
+
+Low Priority / Experimental
+#	Improvement	Description
+9	Voice Input	Speech-to-text for accessibility
+10	RAG Fine-tuning	Fine-tune embeddings on veteran Q&A data
+11	Agentic Scraping	LLM-guided intelligent crawling
+12	Metrics Dashboard	Historical system load graphs

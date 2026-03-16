@@ -74,12 +74,26 @@ A lexical + semantic **re-ranker** ensures the most relevant content per trust l
 
 The system applies MRCA priority through re-ranker boosts and LLM prompt instructions.
 
+Key Features (v3.0)
+Real-time Dashboard - React-based UI with System Status refreshing every 2 seconds
+Independent Panels - Chat and sidebar work independently without interfering
+Multi-model routing - Automatically selects optimal model based on query complexity
+Hardware detection - Auto-detects GPU and recommends optimal models
+Improved embeddings - Support for mxbai-embed-large (1024-dim)
+Context summarization - qwen2.5:7b compresses context to fit more relevant content
+SQL specialist - codellama:7b generates more accurate database queries
+Session memory - Remembers veteran's context (service, conditions) within session
+Duplicate question detection - Avoids re-inference for repeated questions
+Recent questions context - Uses last 100 questions to improve response relevance
+
 -------
 
 
 ensure admin_tasks.ps1  still works entirely and no modifications are needed.
 
 make sure backup routine in admin_tasks.ps1 is comprehensive
+
+make sure scape depth and coverage is sufficent as it isn't at the moment.
 
 implement a scraping menu at the top level giving various scarping options
 
